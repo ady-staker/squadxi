@@ -15,7 +15,7 @@ far.
 - [x] **Phase 2** — data model + seeded mock matches
 - [x] **Phase 3** — player auth (email + password)
 - [x] **Phase 4** — scoring engine + team builder
-- [ ] Phase 5 — leagues, contests, entry-fee payment
+- [x] **Phase 5** — leagues, contests, entry-fee payment
 - [ ] Phase 6 — live match simulation + leaderboard
 - [ ] Phase 7 — contest finalization + payouts
 - [ ] Phase 8 — admin dashboard (overview, refunds, payout queue)

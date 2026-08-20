@@ -190,7 +190,13 @@ model ContestEntry {
   fantasyTeamId     String
   entryFeeCents     Int
   coinvoyageOrderId String?
-  paymentStatus     String   @default("NONE") // NONE | PENDING | COMPLETED | FAILED | REFUNDED
+  // "NONE" until a CoinVoyage order exists (free entry, or not yet paid);
+  // once one does, the real CoinVoyage OrderStatus value (see
+  // lib/order-status.ts) -- not a simplified mapping, so isOrderStatus()/
+  // isTerminalStatus() work directly on this field like every other app.
+  paymentStatus     String   @default("NONE")
+  lastEventAt       DateTime? // out-of-order webhook/poll delivery guard, same pattern as coinflip-site's Bet.lastEventAt
+  slotClaimed       Boolean  @default(false) // true once this entry has claimed a Contest.currentEntries slot -- the exactly-once release guard in lib/contest-fulfillment.ts (mirrors dental-site's Order.stockReserved)
   rank              Int?
   prizeCents        Int      @default(0)
   idempotencyKey    String?  @unique
