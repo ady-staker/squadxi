@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { generateMatchEvents, type SimPlayer } from "@/lib/match-simulator";
 import { aggregatePerformances, type RawPerformance } from "@/lib/aggregate-performance";
 import { totalMatchPoints, applyMultiplier, type CaptaincyRole } from "@/lib/scoring";
+import { lockEntriesForMatch, finalizeMatchContests } from "@/lib/contest-finalization";
 
 const TRANSACTION_OPTIONS = { timeout: 20000, maxWait: 10000 };
 const DEFAULT_ADVANCE_BY = 6; // one over's worth of legal-and-extra balls, a demo-visible chunk
@@ -87,6 +88,7 @@ export async function advanceMatch(matchId: string, byN: number = DEFAULT_ADVANC
     orderBy: { sequence: "asc" },
   });
   const perfMap = aggregatePerformances(revealedEvents);
+  const wasUpcoming = match.status === "UPCOMING";
 
   await prisma.$transaction(async (tx) => {
     for (const [playerId, perf] of perfMap) {
@@ -119,7 +121,20 @@ export async function advanceMatch(matchId: string, byN: number = DEFAULT_ADVANC
     }
   }, TRANSACTION_OPTIONS);
 
+  // Run after the core transaction commits, not inside it -- locking/
+  // finalization touch a variable number of Contest/League/Payout rows and
+  // don't need to be atomic with the match's own status write. A few
+  // milliseconds where the match is LIVE but a contest is still OPEN is a
+  // harmless, self-correcting gap for an admin-driven demo app, not a
+  // money-safety concern.
   const updated = await prisma.match.findUniqueOrThrow({ where: { id: matchId } });
+  if (wasUpcoming && updated.status !== "UPCOMING") {
+    await lockEntriesForMatch(matchId);
+  }
+  if (updated.status === "COMPLETED") {
+    await finalizeMatchContests(matchId);
+  }
+
   return {
     status: updated.status,
     currentEventSequence: updated.currentEventSequence,

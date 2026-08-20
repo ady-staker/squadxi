@@ -208,15 +208,24 @@ model ContestEntry {
   @@unique([leagueId, userId])
 }
 
-// --- Money ledger (identical shape to coinflip-site's Payout model) --------
+// --- Money ledger -----------------------------------------------------------
+// Same shape as coinflip-site's Payout model, with one deliberate deviation:
+// chain/token/walletAddress are nullable here. coinflip-site collects a
+// wallet at bet-placement time (a bet always needs to know where winnings
+// go), so its Payout row is always born with real values. This app collects
+// User.walletAddress lazily -- only once someone actually wins (see
+// lib/contest-finalization.ts) -- so a Payout row can genuinely exist before
+// those details are known. Null means "awaiting the winner," not "unset by
+// mistake"; the admin payout queue (Phase 8) must treat a null
+// walletAddress as not-yet-payable, not as an empty string to send to.
 
 model Payout {
   id              String    @id @default(cuid())
   contestEntryId  String    @unique
   amountOwedCents Int
-  chain           String
-  token           String
-  walletAddress   String
+  chain           String?
+  token           String?
+  walletAddress   String?
   status          String    @default("PENDING") // PENDING | PAID
   txNote          String?
   createdAt       DateTime  @default(now())

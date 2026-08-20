@@ -17,7 +17,7 @@ far.
 - [x] **Phase 4** — scoring engine + team builder
 - [x] **Phase 5** — leagues, contests, entry-fee payment
 - [x] **Phase 6** — live match simulation + leaderboard
-- [ ] Phase 7 — contest finalization + payouts
+- [x] **Phase 7** — contest finalization + payouts
 - [ ] Phase 8 — admin dashboard (overview, refunds, payout queue)
 - [ ] Phase 9 — frontend polish
 - [ ] Phase 10 — deploy

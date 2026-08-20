@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Payout" ALTER COLUMN "chain" DROP NOT NULL,
+ALTER COLUMN "token" DROP NOT NULL,
+ALTER COLUMN "walletAddress" DROP NOT NULL;
