@@ -169,6 +169,7 @@ model FantasyTeam {
   totalCredits  Decimal             @db.Decimal(4, 1)
   totalPoints   Decimal             @default(0) @db.Decimal(6, 1)
   players       FantasyTeamPlayer[]
+  contestEntries ContestEntry[]
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 }
@@ -188,6 +189,7 @@ model ContestEntry {
   contestId         String?
   leagueId          String?
   fantasyTeamId     String
+  fantasyTeam       FantasyTeam @relation(fields: [fantasyTeamId], references: [id])
   entryFeeCents     Int
   coinvoyageOrderId String?
   // "NONE" until a CoinVoyage order exists (free entry, or not yet paid);
