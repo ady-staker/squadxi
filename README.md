@@ -31,11 +31,40 @@ no embedded wallet widget, same pattern as this workspace's dental-site).
 
 ## Cricket data
 
-All teams, players, and matches are **seeded/mock data** — there is no live
-cricket data feed. "Live" matches are pre-generated ball-by-ball and revealed
-progressively via an admin-clicked Advance control in `/admin`, not a real
-broadcast feed or cron job (Vercel Cron isn't sub-minute-reliable on any
-practical tier).
+**Teams and players are real; matches and live scoring are simulated.**
+Stated precisely, since it's easy to blur this:
+
+- The 6 national squads (India, Australia, England, Pakistan, South Africa,
+  New Zealand) and their ~15-player rosters are real, sourced from
+  [Cricsheet](https://cricsheet.org)'s open ball-by-ball T20 international
+  archive (licensed [ODC-BY 1.0](http://opendatacommons.org/licenses/by/1.0/) —
+  attributed in the site footer). `battingSkill`/`bowlingSkill` (and the
+  credit values derived from them) are computed from each player's real
+  aggregate stats across ~450 real men's T20I matches between these teams,
+  min-max normalized across the full player pool so real relative ability
+  differences translate into a meaningfully different credit range (an
+  earlier per-player-clamped version compressed every real international
+  into a 9.3-10.4 credit band, making the 100-credit budget mathematically
+  impossible to build a team under -- verified and fixed before this
+  shipped, see `prisma/seed.ts`'s comments).
+- **Which two teams play, when, and every ball once a match goes live is
+  simulated** by `lib/match-simulator.ts`, not a replay of any real match
+  Cricsheet recorded. There is no live/real-time cricket data source: every
+  free option was researched and ruled out (see below) as either far too
+  rate-limited for live polling, in violation of the source site's own
+  terms of service, or (Cricsheet itself) a lagged historical archive, not
+  live data. "Live" matches reveal this pre-generated log progressively via
+  an admin-clicked Advance control in `/admin`, same mechanism as before.
+- The one-time extraction script that turns Cricsheet's raw archive into
+  `prisma/data/real-roster.json` (a small derived dataset, not raw
+  Cricsheet data) isn't part of this repo -- it was a scratch script run
+  once against a downloaded Cricsheet zip. Re-deriving it means: download
+  `https://cricsheet.org/downloads/t20s_json.zip`, filter for men's
+  matches among the 6 chosen teams, aggregate real batting/bowling figures
+  per player, infer WK/BAT/BOWL/AR role from real involvement rates (with a
+  known-keeper name list as the primary signal, since a real keeper may not
+  personally rack up stumping credits in a small sample), and min-max
+  normalize skill ratings across the full pool.
 
 ## Money flow
 

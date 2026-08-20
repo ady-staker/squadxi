@@ -8,6 +8,20 @@ export function Footer() {
           reviewed and paid out by the operator, not automated.
         </p>
       </div>
+      <div className="mx-auto max-w-5xl px-4 pt-4 text-[11px] text-muted/70">
+        Player and team data derived from{" "}
+        <a
+          href="https://cricsheet.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-muted"
+        >
+          Cricsheet
+        </a>
+        , used under the Open Data Commons Attribution License (ODC-BY 1.0).
+        Matches, scheduling, and live scoring on this site are simulated, not
+        real fixtures or real-time data.
+      </div>
     </footer>
   );
 }

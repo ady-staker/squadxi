@@ -1,29 +1,46 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { generateMatchEvents, type SimPlayer } from "../lib/match-simulator";
 import { aggregatePerformances } from "../lib/aggregate-performance";
 
 const prisma = new PrismaClient();
 
-// All fictional -- no real-world team/player names or likenesses. Six
-// mock franchises so a match always has two distinct teams to draw from.
-const TEAMS = [
-  { name: "Mumbai Marauders", shortName: "MUM", logo: "🦈" },
-  { name: "Delhi Dynamos", shortName: "DEL", logo: "⚡" },
-  { name: "Chennai Chargers", shortName: "CHE", logo: "🔥" },
-  { name: "Punjab Panthers", shortName: "PUN", logo: "🐆" },
-  { name: "Bengaluru Blazers", shortName: "BLR", logo: "🌟" },
-  { name: "Kolkata Krakens", shortName: "KOL", logo: "🐙" },
-];
-
-const FIRST_NAMES = [
-  "Arjun", "Vikram", "Rohan", "Karan", "Aditya", "Sanjay", "Rahul", "Nikhil",
-  "Varun", "Aarav", "Dev", "Ishaan", "Kabir", "Vivaan", "Reyansh", "Yash",
-  "Siddharth", "Manish", "Anand", "Suresh", "Ravi", "Ajay", "Gaurav", "Harsh",
-];
-const LAST_NAMES = [
-  "Sharma", "Verma", "Patel", "Reddy", "Nair", "Iyer", "Rao", "Menon",
-  "Gupta", "Kapoor", "Malhotra", "Bhatt", "Joshi", "Chauhan", "Desai", "Pillai",
-];
+// Real teams, real players, real historical performance -- sourced from
+// Cricsheet (https://cricsheet.org), an open ball-by-ball cricket data
+// archive licensed under ODC-BY 1.0 (attribution required; see README and
+// components/Footer.tsx). prisma/data/real-roster.json is a small derived
+// dataset (not raw Cricsheet data) produced by a one-time extraction script
+// (kept outside this repo): it aggregates real men's T20 international
+// stats for six national squads into per-player role (WK/BAT/BOWL/AR) and
+// battingSkill/bowlingSkill ratings (0-100, min-max normalized across the
+// full player pool so real relative ability differences translate into a
+// meaningfully different credit range -- see the extraction notes in
+// README's Cricket data section for why a naive per-player formula
+// compressed every real international into a near-identical, unbuildable
+// credit band).
+//
+// What's real vs simulated, stated plainly: team names, player names, and
+// skill ratings are grounded in real historical stats. Which two teams
+// play on which date, and everything that happens ball-by-ball once a
+// match is "live," is simulated by lib/match-simulator.ts, not a replay of
+// any actual match Cricsheet recorded. There is no live/real-time data
+// source in this app (see README's Money flow / Cricket data sections).
+type RealRosterPlayer = {
+  name: string;
+  role: string;
+  battingSkill: number;
+  bowlingSkill: number;
+};
+type RealRosterTeam = {
+  name: string;
+  shortName: string;
+  logo: string;
+  players: RealRosterPlayer[];
+};
+const realRoster: { teams: RealRosterTeam[] } = JSON.parse(
+  readFileSync(join(__dirname, "data", "real-roster.json"), "utf8")
+);
 
 function pick<T>(rng: () => number, arr: T[]): T {
   return arr[Math.floor(rng() * arr.length)];
@@ -40,47 +57,20 @@ function mulberry32(seed: number) {
   };
 }
 
-const rng = mulberry32(42); // fixed seed -- reseeding always produces the same fixture data
+const rng = mulberry32(42); // fixed seed -- only used for venue selection now, not player generation
 
-function randomSkill(rng: () => number, min: number, max: number): number {
-  return Math.round(min + rng() * (max - min));
-}
-
-// Squad composition per team: 2 WK / 5 BAT / 5 BOWL / 3 AR = 15, satisfying
-// the team-builder's role min/max (WK 1-4, BAT 3-6, BOWL 3-6, AR 1-4) with
-// margin on both sides of the pool.
-const ROLE_PLAN: { role: string; count: number }[] = [
-  { role: "WK", count: 2 },
-  { role: "BAT", count: 5 },
-  { role: "BOWL", count: 5 },
-  { role: "AR", count: 3 },
-];
-
-// Wide floors are deliberate: creditValueFor() prices off max(battingSkill,
-// bowlingSkill), so every role needs some genuinely cheap "value pick"
-// players (skill near the floor) alongside expensive stars, or the
-// 100-credit team-builder budget becomes unsatisfiable -- an early version
-// with floors starting at 50-60 priced every player into an ~8.7-10.5 band
-// and made a valid 11-player team nearly impossible to build.
-function skillsForRole(rng: () => number, role: string): { battingSkill: number; bowlingSkill: number } {
-  switch (role) {
-    case "WK":
-      return { battingSkill: randomSkill(rng, 20, 92), bowlingSkill: randomSkill(rng, 5, 15) };
-    case "BAT":
-      return { battingSkill: randomSkill(rng, 20, 96), bowlingSkill: randomSkill(rng, 5, 25) };
-    case "BOWL":
-      return { battingSkill: randomSkill(rng, 15, 45), bowlingSkill: randomSkill(rng, 20, 96) };
-    case "AR":
-      return { battingSkill: randomSkill(rng, 20, 80), bowlingSkill: randomSkill(rng, 20, 80) };
-    default:
-      return { battingSkill: 50, bowlingSkill: 50 };
-  }
-}
-
+// 5.5-10.0, correlated with the player's best real-stat-derived skill.
+// Wider floor than an earlier fictional-data version (7.0-10.5) needed --
+// real international regulars cluster at the high end of raw ability (see
+// the extraction notes above), so every real player's *skill* value is
+// already high; without a low credit floor, 11 real players would cost
+// 102-114 credits against a 100-credit cap, making a valid team
+// impossible to build. Verified buildable (96.5-98.1 credits for the
+// cheapest valid combination) across all 15 real team pairings before
+// this shipped.
 function creditValueFor(battingSkill: number, bowlingSkill: number): string {
   const combined = Math.max(battingSkill, bowlingSkill);
-  // 7.0-10.5, correlated with the player's best skill -- star players cost more.
-  const credit = 7 + (combined / 100) * 3.5;
+  const credit = 5.5 + (combined / 100) * 4.5;
   return credit.toFixed(1);
 }
 
@@ -88,55 +78,58 @@ async function main() {
   console.log("Clearing previously seeded cricket-domain rows...");
   // Dev fixture data only -- safe to wipe and regenerate on every run. Order
   // matters: children before parents (no onDelete cascade is configured).
+  // ContestEntry -> FantasyTeam is a real FK (RESTRICT by default) added in
+  // Phase 6, so ContestEntry must go before FantasyTeam/FantasyTeamPlayer --
+  // this ordering bug was latent and harmless through every earlier reseed
+  // (no ContestEntry rows existed yet at seed time), only surfacing now
+  // that real test entries exist. Payout also references ContestEntry by
+  // plain string id (no enforced FK, matching this repo family's Payout
+  // convention), so it doesn't block deletion but is cleared here too to
+  // avoid leaving orphaned rows behind.
+  await prisma.payout.deleteMany({});
+  await prisma.contestEntry.deleteMany({});
   await prisma.playerPerformance.deleteMany({});
   await prisma.matchEvent.deleteMany({});
   await prisma.fantasyTeamPlayer.deleteMany({});
   await prisma.fantasyTeam.deleteMany({});
-  await prisma.contestEntry.deleteMany({});
+  await prisma.contest.deleteMany({});
+  await prisma.league.deleteMany({});
   await prisma.match.deleteMany({});
   await prisma.player.deleteMany({});
   await prisma.team.deleteMany({});
 
-  console.log("Seeding teams...");
+  console.log("Seeding real teams...");
   const teamRows = [];
-  for (const t of TEAMS) {
-    const team = await prisma.team.create({ data: t });
-    teamRows.push(team);
+  for (const t of realRoster.teams) {
+    const team = await prisma.team.create({
+      data: { name: t.name, shortName: t.shortName, logo: t.logo },
+    });
+    teamRows.push({ row: team, source: t });
   }
 
-  console.log("Seeding players...");
-  const usedNames = new Set<string>();
+  console.log("Seeding real players...");
   const squadsByTeam = new Map<string, SimPlayer[]>();
 
-  for (const team of teamRows) {
+  for (const { row: team, source } of teamRows) {
     const squad: SimPlayer[] = [];
-    for (const { role, count } of ROLE_PLAN) {
-      for (let i = 0; i < count; i++) {
-        let name: string;
-        do {
-          name = `${pick(rng, FIRST_NAMES)} ${pick(rng, LAST_NAMES)}`;
-        } while (usedNames.has(name));
-        usedNames.add(name);
-
-        const { battingSkill, bowlingSkill } = skillsForRole(rng, role);
-        const player = await prisma.player.create({
-          data: {
-            name,
-            teamId: team.id,
-            role,
-            creditValue: creditValueFor(battingSkill, bowlingSkill),
-            battingSkill,
-            bowlingSkill,
-          },
-        });
-        squad.push({
-          id: player.id,
-          name: player.name,
-          role: player.role,
-          battingSkill: player.battingSkill,
-          bowlingSkill: player.bowlingSkill,
-        });
-      }
+    for (const p of source.players) {
+      const player = await prisma.player.create({
+        data: {
+          name: p.name,
+          teamId: team.id,
+          role: p.role,
+          creditValue: creditValueFor(p.battingSkill, p.bowlingSkill),
+          battingSkill: p.battingSkill,
+          bowlingSkill: p.bowlingSkill,
+        },
+      });
+      squad.push({
+        id: player.id,
+        name: player.name,
+        role: player.role,
+        battingSkill: player.battingSkill,
+        bowlingSkill: player.bowlingSkill,
+      });
     }
     squadsByTeam.set(team.id, squad);
   }
@@ -145,7 +138,8 @@ async function main() {
   const now = Date.now();
   const DAY = 24 * 60 * 60 * 1000;
 
-  // [team1 index, team2 index, offsetDays from now, status]
+  // [team1 index, team2 index, offsetDays from now, status] -- which real
+  // teams play, and when, is a simulated schedule (see file-level comment).
   // Negative offsets = past (completed/live), positive = future (upcoming).
   const matchPlan: { t1: number; t2: number; offsetDays: number; status: "COMPLETED" | "LIVE" | "UPCOMING" }[] = [
     { t1: 0, t2: 1, offsetDays: -6, status: "COMPLETED" },
@@ -165,8 +159,8 @@ async function main() {
   ];
 
   for (const plan of matchPlan) {
-    const team1 = teamRows[plan.t1];
-    const team2 = teamRows[plan.t2];
+    const team1 = teamRows[plan.t1].row;
+    const team2 = teamRows[plan.t2].row;
     const scheduledAt = new Date(now + plan.offsetDays * DAY);
 
     const match = await prisma.match.create({
@@ -241,9 +235,9 @@ async function main() {
           stumpings: perf.stumpings,
           runOutsDirect: perf.runOutsDirect,
           runOutsAssist: perf.runOutsAssist,
-          // fantasyPoints stays at its default (0) here -- lib/scoring.ts
-          // doesn't exist yet (Phase 4). Recomputed for all seeded
-          // PlayerPerformance rows once the scoring engine lands.
+          // fantasyPoints recomputed by lib/scoring.ts at seed time isn't
+          // done here either -- same as before, left at 0 until the first
+          // admin Advance call recomputes it (see lib/live-advance.ts).
         },
       });
     }

@@ -1,0 +1,712 @@
+{
+  "teams": [
+    {
+      "name": "India",
+      "shortName": "IND",
+      "logo": "🐯",
+      "roleCounts": {
+        "WK": 3,
+        "BAT": 5,
+        "BOWL": 6,
+        "AR": 1
+      },
+      "players": [
+        {
+          "name": "HH Pandya",
+          "role": "AR",
+          "battingSkill": 79,
+          "bowlingSkill": 62,
+          "matchesSampled": 83
+        },
+        {
+          "name": "RG Sharma",
+          "role": "BAT",
+          "battingSkill": 83,
+          "bowlingSkill": 9,
+          "matchesSampled": 83
+        },
+        {
+          "name": "V Kohli",
+          "role": "BAT",
+          "battingSkill": 88,
+          "bowlingSkill": 35,
+          "matchesSampled": 78
+        },
+        {
+          "name": "SA Yadav",
+          "role": "BAT",
+          "battingSkill": 96,
+          "bowlingSkill": 13,
+          "matchesSampled": 65
+        },
+        {
+          "name": "MS Dhoni",
+          "role": "WK",
+          "battingSkill": 70,
+          "bowlingSkill": 13,
+          "matchesSampled": 60
+        },
+        {
+          "name": "AR Patel",
+          "role": "BOWL",
+          "battingSkill": 61,
+          "bowlingSkill": 75,
+          "matchesSampled": 58
+        },
+        {
+          "name": "JJ Bumrah",
+          "role": "BOWL",
+          "battingSkill": 31,
+          "bowlingSkill": 91,
+          "matchesSampled": 53
+        },
+        {
+          "name": "B Kumar",
+          "role": "BOWL",
+          "battingSkill": 33,
+          "bowlingSkill": 81,
+          "matchesSampled": 48
+        },
+        {
+          "name": "Arshdeep Singh",
+          "role": "BOWL",
+          "battingSkill": 39,
+          "bowlingSkill": 82,
+          "matchesSampled": 47
+        },
+        {
+          "name": "SK Raina",
+          "role": "BAT",
+          "battingSkill": 80,
+          "bowlingSkill": 45,
+          "matchesSampled": 43
+        },
+        {
+          "name": "YS Chahal",
+          "role": "BOWL",
+          "battingSkill": 18,
+          "bowlingSkill": 68,
+          "matchesSampled": 43
+        },
+        {
+          "name": "RA Jadeja",
+          "role": "BOWL",
+          "battingSkill": 65,
+          "bowlingSkill": 67,
+          "matchesSampled": 39
+        },
+        {
+          "name": "RR Pant",
+          "role": "WK",
+          "battingSkill": 66,
+          "bowlingSkill": 13,
+          "matchesSampled": 38
+        },
+        {
+          "name": "KL Rahul",
+          "role": "WK",
+          "battingSkill": 82,
+          "bowlingSkill": 13,
+          "matchesSampled": 37
+        },
+        {
+          "name": "Yuvraj Singh",
+          "role": "BAT",
+          "battingSkill": 82,
+          "bowlingSkill": 64,
+          "matchesSampled": 36
+        }
+      ]
+    },
+    {
+      "name": "Australia",
+      "shortName": "AUS",
+      "logo": "🦘",
+      "roleCounts": {
+        "WK": 1,
+        "BAT": 9,
+        "BOWL": 4,
+        "AR": 1
+      },
+      "players": [
+        {
+          "name": "GJ Maxwell",
+          "role": "BAT",
+          "battingSkill": 87,
+          "bowlingSkill": 51,
+          "matchesSampled": 80
+        },
+        {
+          "name": "AJ Finch",
+          "role": "BAT",
+          "battingSkill": 90,
+          "bowlingSkill": 13,
+          "matchesSampled": 69
+        },
+        {
+          "name": "DA Warner",
+          "role": "BAT",
+          "battingSkill": 84,
+          "bowlingSkill": 13,
+          "matchesSampled": 66
+        },
+        {
+          "name": "A Zampa",
+          "role": "BOWL",
+          "battingSkill": 37,
+          "bowlingSkill": 76,
+          "matchesSampled": 63
+        },
+        {
+          "name": "MP Stoinis",
+          "role": "BAT",
+          "battingSkill": 78,
+          "bowlingSkill": 45,
+          "matchesSampled": 54
+        },
+        {
+          "name": "MR Marsh",
+          "role": "BAT",
+          "battingSkill": 88,
+          "bowlingSkill": 50,
+          "matchesSampled": 45
+        },
+        {
+          "name": "SPD Smith",
+          "role": "BAT",
+          "battingSkill": 73,
+          "bowlingSkill": 43,
+          "matchesSampled": 45
+        },
+        {
+          "name": "MS Wade",
+          "role": "WK",
+          "battingSkill": 82,
+          "bowlingSkill": 13,
+          "matchesSampled": 44
+        },
+        {
+          "name": "SR Watson",
+          "role": "AR",
+          "battingSkill": 88,
+          "bowlingSkill": 67,
+          "matchesSampled": 38
+        },
+        {
+          "name": "MA Starc",
+          "role": "BOWL",
+          "battingSkill": 50,
+          "bowlingSkill": 77,
+          "matchesSampled": 35
+        },
+        {
+          "name": "PJ Cummins",
+          "role": "BOWL",
+          "battingSkill": 71,
+          "bowlingSkill": 79,
+          "matchesSampled": 35
+        },
+        {
+          "name": "CL White",
+          "role": "BAT",
+          "battingSkill": 80,
+          "bowlingSkill": 48,
+          "matchesSampled": 34
+        },
+        {
+          "name": "TM Head",
+          "role": "BAT",
+          "battingSkill": 91,
+          "bowlingSkill": 22,
+          "matchesSampled": 33
+        },
+        {
+          "name": "TH David",
+          "role": "BAT",
+          "battingSkill": 90,
+          "bowlingSkill": 13,
+          "matchesSampled": 32
+        },
+        {
+          "name": "JR Hazlewood",
+          "role": "BOWL",
+          "battingSkill": 5,
+          "bowlingSkill": 77,
+          "matchesSampled": 30
+        }
+      ]
+    },
+    {
+      "name": "England",
+      "shortName": "ENG",
+      "logo": "🦁",
+      "roleCounts": {
+        "WK": 2,
+        "BAT": 7,
+        "BOWL": 5,
+        "AR": 1
+      },
+      "players": [
+        {
+          "name": "JC Buttler",
+          "role": "WK",
+          "battingSkill": 92,
+          "bowlingSkill": 13,
+          "matchesSampled": 97
+        },
+        {
+          "name": "AU Rashid",
+          "role": "BOWL",
+          "battingSkill": 41,
+          "bowlingSkill": 72,
+          "matchesSampled": 90
+        },
+        {
+          "name": "EJG Morgan",
+          "role": "BAT",
+          "battingSkill": 86,
+          "bowlingSkill": 13,
+          "matchesSampled": 76
+        },
+        {
+          "name": "CJ Jordan",
+          "role": "BOWL",
+          "battingSkill": 66,
+          "bowlingSkill": 67,
+          "matchesSampled": 66
+        },
+        {
+          "name": "JM Bairstow",
+          "role": "WK",
+          "battingSkill": 82,
+          "bowlingSkill": 13,
+          "matchesSampled": 57
+        },
+        {
+          "name": "MM Ali",
+          "role": "BAT",
+          "battingSkill": 81,
+          "bowlingSkill": 53,
+          "matchesSampled": 55
+        },
+        {
+          "name": "AD Hales",
+          "role": "BAT",
+          "battingSkill": 85,
+          "bowlingSkill": 13,
+          "matchesSampled": 51
+        },
+        {
+          "name": "DJ Malan",
+          "role": "BAT",
+          "battingSkill": 89,
+          "bowlingSkill": 5,
+          "matchesSampled": 50
+        },
+        {
+          "name": "SM Curran",
+          "role": "BOWL",
+          "battingSkill": 69,
+          "bowlingSkill": 64,
+          "matchesSampled": 48
+        },
+        {
+          "name": "JJ Roy",
+          "role": "BAT",
+          "battingSkill": 83,
+          "bowlingSkill": 13,
+          "matchesSampled": 47
+        },
+        {
+          "name": "HC Brook",
+          "role": "BAT",
+          "battingSkill": 97,
+          "bowlingSkill": 13,
+          "matchesSampled": 40
+        },
+        {
+          "name": "SCJ Broad",
+          "role": "BOWL",
+          "battingSkill": 53,
+          "bowlingSkill": 81,
+          "matchesSampled": 39
+        },
+        {
+          "name": "LJ Wright",
+          "role": "BAT",
+          "battingSkill": 73,
+          "bowlingSkill": 51,
+          "matchesSampled": 37
+        },
+        {
+          "name": "DJ Willey",
+          "role": "BOWL",
+          "battingSkill": 67,
+          "bowlingSkill": 67,
+          "matchesSampled": 33
+        },
+        {
+          "name": "LS Livingstone",
+          "role": "AR",
+          "battingSkill": 85,
+          "bowlingSkill": 51,
+          "matchesSampled": 33
+        }
+      ]
+    },
+    {
+      "name": "Pakistan",
+      "shortName": "PAK",
+      "logo": "🌙",
+      "roleCounts": {
+        "WK": 2,
+        "BAT": 5,
+        "BOWL": 7,
+        "AR": 1
+      },
+      "players": [
+        {
+          "name": "Babar Azam",
+          "role": "BAT",
+          "battingSkill": 88,
+          "bowlingSkill": 13,
+          "matchesSampled": 79
+        },
+        {
+          "name": "Shaheen Shah Afridi",
+          "role": "BOWL",
+          "battingSkill": 57,
+          "bowlingSkill": 78,
+          "matchesSampled": 68
+        },
+        {
+          "name": "Mohammad Hafeez",
+          "role": "BAT",
+          "battingSkill": 78,
+          "bowlingSkill": 64,
+          "matchesSampled": 65
+        },
+        {
+          "name": "Shadab Khan",
+          "role": "BOWL",
+          "battingSkill": 74,
+          "bowlingSkill": 69,
+          "matchesSampled": 63
+        },
+        {
+          "name": "Mohammad Rizwan",
+          "role": "WK",
+          "battingSkill": 84,
+          "bowlingSkill": 13,
+          "matchesSampled": 61
+        },
+        {
+          "name": "Shoaib Malik",
+          "role": "BAT",
+          "battingSkill": 67,
+          "bowlingSkill": 40,
+          "matchesSampled": 57
+        },
+        {
+          "name": "Shahid Afridi",
+          "role": "AR",
+          "battingSkill": 76,
+          "bowlingSkill": 80,
+          "matchesSampled": 55
+        },
+        {
+          "name": "Haris Rauf",
+          "role": "BOWL",
+          "battingSkill": 49,
+          "bowlingSkill": 82,
+          "matchesSampled": 54
+        },
+        {
+          "name": "Umar Akmal",
+          "role": "WK",
+          "battingSkill": 75,
+          "bowlingSkill": 13,
+          "matchesSampled": 51
+        },
+        {
+          "name": "Fakhar Zaman",
+          "role": "BAT",
+          "battingSkill": 84,
+          "bowlingSkill": 13,
+          "matchesSampled": 48
+        },
+        {
+          "name": "Saeed Ajmal",
+          "role": "BOWL",
+          "battingSkill": 43,
+          "bowlingSkill": 97,
+          "matchesSampled": 40
+        },
+        {
+          "name": "Imad Wasim",
+          "role": "BOWL",
+          "battingSkill": 70,
+          "bowlingSkill": 80,
+          "matchesSampled": 39
+        },
+        {
+          "name": "Iftikhar Ahmed",
+          "role": "BAT",
+          "battingSkill": 75,
+          "bowlingSkill": 48,
+          "matchesSampled": 39
+        },
+        {
+          "name": "Umar Gul",
+          "role": "BOWL",
+          "battingSkill": 54,
+          "bowlingSkill": 92,
+          "matchesSampled": 39
+        },
+        {
+          "name": "Faheem Ashraf",
+          "role": "BOWL",
+          "battingSkill": 67,
+          "bowlingSkill": 65,
+          "matchesSampled": 38
+        }
+      ]
+    },
+    {
+      "name": "South Africa",
+      "shortName": "RSA",
+      "logo": "🦌",
+      "roleCounts": {
+        "WK": 3,
+        "BAT": 6,
+        "BOWL": 5,
+        "AR": 1
+      },
+      "players": [
+        {
+          "name": "DA Miller",
+          "role": "BAT",
+          "battingSkill": 83,
+          "bowlingSkill": 13,
+          "matchesSampled": 76
+        },
+        {
+          "name": "Q de Kock",
+          "role": "WK",
+          "battingSkill": 87,
+          "bowlingSkill": 13,
+          "matchesSampled": 55
+        },
+        {
+          "name": "AB de Villiers",
+          "role": "WK",
+          "battingSkill": 78,
+          "bowlingSkill": 13,
+          "matchesSampled": 51
+        },
+        {
+          "name": "JP Duminy",
+          "role": "BAT",
+          "battingSkill": 78,
+          "bowlingSkill": 45,
+          "matchesSampled": 50
+        },
+        {
+          "name": "RR Hendricks",
+          "role": "BAT",
+          "battingSkill": 78,
+          "bowlingSkill": 13,
+          "matchesSampled": 48
+        },
+        {
+          "name": "T Shamsi",
+          "role": "BOWL",
+          "battingSkill": 20,
+          "bowlingSkill": 74,
+          "matchesSampled": 43
+        },
+        {
+          "name": "K Rabada",
+          "role": "BOWL",
+          "battingSkill": 52,
+          "bowlingSkill": 70,
+          "matchesSampled": 43
+        },
+        {
+          "name": "L Ngidi",
+          "role": "BOWL",
+          "battingSkill": 42,
+          "bowlingSkill": 76,
+          "matchesSampled": 36
+        },
+        {
+          "name": "JA Morkel",
+          "role": "AR",
+          "battingSkill": 76,
+          "bowlingSkill": 57,
+          "matchesSampled": 36
+        },
+        {
+          "name": "H Klaasen",
+          "role": "WK",
+          "battingSkill": 85,
+          "bowlingSkill": 13,
+          "matchesSampled": 35
+        },
+        {
+          "name": "AK Markram",
+          "role": "BAT",
+          "battingSkill": 90,
+          "bowlingSkill": 38,
+          "matchesSampled": 35
+        },
+        {
+          "name": "WD Parnell",
+          "role": "BOWL",
+          "battingSkill": 50,
+          "bowlingSkill": 66,
+          "matchesSampled": 34
+        },
+        {
+          "name": "DW Steyn",
+          "role": "BOWL",
+          "battingSkill": 41,
+          "bowlingSkill": 84,
+          "matchesSampled": 33
+        },
+        {
+          "name": "F du Plessis",
+          "role": "BAT",
+          "battingSkill": 83,
+          "bowlingSkill": 13,
+          "matchesSampled": 32
+        },
+        {
+          "name": "HM Amla",
+          "role": "BAT",
+          "battingSkill": 83,
+          "bowlingSkill": 13,
+          "matchesSampled": 31
+        }
+      ]
+    },
+    {
+      "name": "New Zealand",
+      "shortName": "NZ",
+      "logo": "🥝",
+      "roleCounts": {
+        "WK": 5,
+        "BAT": 6,
+        "BOWL": 3,
+        "AR": 1
+      },
+      "players": [
+        {
+          "name": "IS Sodhi",
+          "role": "BOWL",
+          "battingSkill": 51,
+          "bowlingSkill": 73,
+          "matchesSampled": 87
+        },
+        {
+          "name": "MJ Santner",
+          "role": "BOWL",
+          "battingSkill": 62,
+          "bowlingSkill": 78,
+          "matchesSampled": 81
+        },
+        {
+          "name": "TG Southee",
+          "role": "AR",
+          "battingSkill": 74,
+          "bowlingSkill": 76,
+          "matchesSampled": 78
+        },
+        {
+          "name": "MJ Guptill",
+          "role": "BAT",
+          "battingSkill": 87,
+          "bowlingSkill": 13,
+          "matchesSampled": 74
+        },
+        {
+          "name": "TL Seifert",
+          "role": "WK",
+          "battingSkill": 87,
+          "bowlingSkill": 13,
+          "matchesSampled": 63
+        },
+        {
+          "name": "LRPL Taylor",
+          "role": "WK",
+          "battingSkill": 72,
+          "bowlingSkill": 13,
+          "matchesSampled": 61
+        },
+        {
+          "name": "KS Williamson",
+          "role": "BAT",
+          "battingSkill": 80,
+          "bowlingSkill": 11,
+          "matchesSampled": 60
+        },
+        {
+          "name": "DJ Mitchell",
+          "role": "BAT",
+          "battingSkill": 79,
+          "bowlingSkill": 26,
+          "matchesSampled": 56
+        },
+        {
+          "name": "MS Chapman",
+          "role": "BAT",
+          "battingSkill": 83,
+          "bowlingSkill": 67,
+          "matchesSampled": 55
+        },
+        {
+          "name": "JDS Neesham",
+          "role": "BAT",
+          "battingSkill": 72,
+          "bowlingSkill": 47,
+          "matchesSampled": 53
+        },
+        {
+          "name": "GD Phillips",
+          "role": "WK",
+          "battingSkill": 78,
+          "bowlingSkill": 31,
+          "matchesSampled": 52
+        },
+        {
+          "name": "C Munro",
+          "role": "BAT",
+          "battingSkill": 89,
+          "bowlingSkill": 29,
+          "matchesSampled": 43
+        },
+        {
+          "name": "DP Conway",
+          "role": "WK",
+          "battingSkill": 78,
+          "bowlingSkill": 13,
+          "matchesSampled": 41
+        },
+        {
+          "name": "BB McCullum",
+          "role": "WK",
+          "battingSkill": 84,
+          "bowlingSkill": 13,
+          "matchesSampled": 40
+        },
+        {
+          "name": "TA Boult",
+          "role": "BOWL",
+          "battingSkill": 48,
+          "bowlingSkill": 72,
+          "matchesSampled": 39
+        }
+      ]
+    }
+  ]
+}
