@@ -14,7 +14,7 @@ far.
 - [x] **Phase 1** — repo scaffold
 - [x] **Phase 2** — data model + seeded mock matches
 - [x] **Phase 3** — player auth (email + password)
-- [ ] Phase 4 — scoring engine + team builder
+- [x] **Phase 4** — scoring engine + team builder
 - [ ] Phase 5 — leagues, contests, entry-fee payment
 - [ ] Phase 6 — live match simulation + leaderboard
 - [ ] Phase 7 — contest finalization + payouts
@@ -38,8 +38,13 @@ practical tier).
 
 ## Money flow
 
-This build runs against **CoinVoyage sandbox** (`COIN_VOYAGE_ENV=development`)
-— no real crypto is ever at risk in this codebase's current configuration.
+This app runs against **live CoinVoyage credentials** (`COIN_VOYAGE_ENV=production`)
+— the same shared-org keys used by the other apps in this workspace. **Real
+crypto moves** when an entry fee is paid or a refund is issued. This was a
+deliberate decision (2026-08-20): the plan originally called for sandbox-only
+testing, but no separate test/sandbox key could be located for this app's own
+CoinVoyage org, and the operator explicitly chose to reuse the shared live
+keys rather than block on that. Test accordingly.
 
 CoinVoyage has no merchant-to-third-party disbursement API: it can collect
 payments (Sale/Invoice/Deposit) and refund a specific prior payment, but it
