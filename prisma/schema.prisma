@@ -1,0 +1,15 @@
+// Full schema lands in Phase 2 (data model + mock data) -- see the approved
+// plan at C:\Users\Adhiraj\.claude\plans\parallel-sauteeing-lynx.md for the
+// complete model list (User, Session, Team, Player, Match, MatchEvent,
+// PlayerPerformance, League, Contest, FantasyTeam, ContestEntry, Payout,
+// Settings, LoginAttempt, UserLoginAttempt). This stub exists so `prisma
+// generate` succeeds during initial scaffold.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
