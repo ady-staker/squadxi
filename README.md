@@ -18,7 +18,7 @@ far.
 - [x] **Phase 5** — leagues, contests, entry-fee payment
 - [x] **Phase 6** — live match simulation + leaderboard
 - [x] **Phase 7** — contest finalization + payouts
-- [ ] Phase 8 — admin dashboard (overview, refunds, payout queue)
+- [x] **Phase 8** — admin dashboard (overview, refunds, payout queue)
 - [ ] Phase 9 — frontend polish
 - [ ] Phase 10 — deploy
 
@@ -75,6 +75,10 @@ npm run dev             # http://localhost:3005
 
 ## Admin
 
-`/admin` — protected by `ADMIN_PASSWORD` (see `.env.example`). Once Phase 8
-lands: platform overview, payout queue, refund action, per-match live-advance
-control, CoinVoyage credential settings.
+`/admin` — protected by `ADMIN_PASSWORD` (see `.env.example`). Shows a
+platform overview (users, matches/contests by status, entry-fee volume,
+pending payout value, recent signups), the per-match live-advance control,
+the manual payout queue (mark-paid, blocked until a winner has a wallet on
+file), and the voided-contest refund queue (a real, admin-triggered
+CoinVoyage refund call per entry). No CoinVoyage credential-settings UI yet
+-- credentials are set via `.env` only.
