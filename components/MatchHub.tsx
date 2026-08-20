@@ -27,6 +27,9 @@ function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+const TERMINAL_PAYMENT_STATUSES = ["COMPLETED", "EXPIRED", "REFUNDED", "FAILED"];
+const STATUS_POLL_MS = 4000;
+
 function EnterContestForm({
   contest,
   teams,
@@ -40,6 +43,8 @@ function EnterContestForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [entryId, setEntryId] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
 
   async function submit() {
     setSubmitting(true);
@@ -54,6 +59,8 @@ function EnterContestForm({
       if (!res.ok) throw new Error(data.error ?? "Failed to enter contest.");
       if (data.paymentUrl) {
         setPaymentUrl(data.paymentUrl);
+        setEntryId(data.contestEntryId);
+        setPaymentStatus(data.paymentStatus ?? "PENDING");
       } else {
         onEntered();
       }
@@ -64,7 +71,32 @@ function EnterContestForm({
     }
   }
 
+  // Polls this entry's status after "Complete payment" is shown -- the
+  // fallback that confirms payment without relying on this app's CoinVoyage
+  // webhook (unregistered as of first deploy, see README). Stops once the
+  // status reaches any terminal state; COMPLETED refreshes the parent list.
+  useEffect(() => {
+    if (!entryId || !paymentStatus || TERMINAL_PAYMENT_STATUSES.includes(paymentStatus)) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/contest-entries/${entryId}/status`);
+        const data = await res.json();
+        if (data.paymentStatus) setPaymentStatus(data.paymentStatus);
+        if (data.paymentStatus === "COMPLETED") onEntered();
+      } catch {
+        // Transient poll failure -- next interval tick tries again.
+      }
+    }, STATUS_POLL_MS);
+    return () => clearInterval(interval);
+  }, [entryId, paymentStatus, onEntered]);
+
   if (paymentUrl) {
+    if (paymentStatus === "COMPLETED") {
+      return <p className="text-sm font-semibold text-accent">Payment confirmed — you're entered!</p>;
+    }
+    if (paymentStatus && TERMINAL_PAYMENT_STATUSES.includes(paymentStatus)) {
+      return <p className="text-sm text-loss">Payment {paymentStatus.toLowerCase()}. Please try entering again.</p>;
+    }
     return (
       <div className="flex flex-col items-end gap-1 text-right">
         <a
@@ -75,7 +107,9 @@ function EnterContestForm({
         >
           Complete payment ↗
         </a>
-        <p className="text-xs text-muted">Opens CoinVoyage's payment page in a new tab.</p>
+        <p className="text-xs text-muted">
+          Opens CoinVoyage's payment page in a new tab. This updates automatically once paid.
+        </p>
       </div>
     );
   }

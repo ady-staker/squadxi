@@ -8,8 +8,7 @@ below — this is a deliberate, documented limitation, not a bug).
 
 ## Status
 
-Under active development. See the phase breakdown below for what's built so
-far.
+All 10 build phases complete and deployed. See the phase breakdown below.
 
 - [x] **Phase 1** — repo scaffold
 - [x] **Phase 2** — data model + seeded mock matches
@@ -20,7 +19,9 @@ far.
 - [x] **Phase 7** — contest finalization + payouts
 - [x] **Phase 8** — admin dashboard (overview, refunds, payout queue)
 - [x] **Phase 9** — frontend polish
-- [ ] Phase 10 — deploy
+- [x] **Phase 10** — deploy
+
+Live at https://squadxi-site.vercel.app.
 
 ## Stack
 
@@ -59,9 +60,11 @@ wallet on demand. So:
   Nothing here claims to be an automated payout.
 - **Refunds** (both the general admin "refund a transaction" action and a
   voided under-filled contest) go through CoinVoyage's real refund API, but
-  are always **admin-reviewed**, never automatic — this codebase had never
-  exercised that refund call against a live sandbox order before this
-  project, so a human confirms it rather than it firing unattended.
+  are always **admin-reviewed**, never automatic. Exercised for real during
+  development: the first attempt failed (`"currency.chain_id is required"`
+  — CoinVoyage does not infer the settlement currency, contrary to an
+  earlier untested assumption elsewhere in this workspace), fixed by
+  looking the order up first and reading its real settlement currency.
 
 ## Local setup
 
@@ -82,3 +85,24 @@ the manual payout queue (mark-paid, blocked until a winner has a wallet on
 file), and the voided-contest refund queue (a real, admin-triggered
 CoinVoyage refund call per entry). No CoinVoyage credential-settings UI yet
 -- credentials are set via `.env` only.
+
+## Deployment
+
+Live at https://squadxi-site.vercel.app — Vercel project `squadxi-site`
+under `adhiraj-joarders-projects`, deployed via the Vercel CLI (not a
+GitHub-integration auto-deploy; the Vercel account isn't connected to the
+`ady-staker` GitHub account, so a redeploy needs `vercel --prod` run
+locally rather than happening automatically on push). Database: Neon
+project `squadxi` (`flat-mouse-14285936`, org `org-royal-pine-62975133`,
+same org as the other apps in this workspace) — the same database used for
+local development, not a separate prod instance.
+
+**Still outstanding**: register this app's own CoinVoyage webhook endpoint
+(`/api/webhooks/coinvoyage`) to get its own `COIN_VOYAGE_WEBHOOK_SECRET` —
+left blank for now, same as this workspace's other apps at a comparable
+stage. This isn't a blocker for correctness in the meantime: the
+"Complete payment" flow polls its own `GET /api/contest-entries/[id]/status`
+every few seconds (same refresh-then-apply shape as dental-site's
+order-status poll route), so a paid entry still confirms without the
+webhook -- registering it later just makes that confirmation instant
+instead of polled.
