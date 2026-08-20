@@ -39,13 +39,13 @@ practical tier).
 
 ## Money flow
 
-This app runs against **live CoinVoyage credentials** (`COIN_VOYAGE_ENV=production`)
-— the same shared-org keys used by the other apps in this workspace. **Real
-crypto moves** when an entry fee is paid or a refund is issued. This was a
-deliberate decision (2026-08-20): the plan originally called for sandbox-only
-testing, but no separate test/sandbox key could be located for this app's own
-CoinVoyage org, and the operator explicitly chose to reuse the shared live
-keys rather than block on that. Test accordingly.
+This app runs against **live CoinVoyage credentials** (`COIN_VOYAGE_ENV=production`).
+**Real crypto moves** when an entry fee is paid or a refund is issued. The
+plan originally called for sandbox-only testing; this app briefly ran on
+the shared-org keys used by the other apps in this workspace (2026-08-20)
+before switching to its own dedicated CoinVoyage org's key pair
+(2026-08-21) — confirmed working via a live `getFeeBalances` authentication
+check before this switch was deployed. Test accordingly.
 
 CoinVoyage has no merchant-to-third-party disbursement API: it can collect
 payments (Sale/Invoice/Deposit) and refund a specific prior payment, but it
