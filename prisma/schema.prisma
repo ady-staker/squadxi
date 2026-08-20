@@ -1,10 +1,3 @@
-// Full schema lands in Phase 2 (data model + mock data) -- see the approved
-// plan at C:\Users\Adhiraj\.claude\plans\parallel-sauteeing-lynx.md for the
-// complete model list (User, Session, Team, Player, Match, MatchEvent,
-// PlayerPerformance, League, Contest, FantasyTeam, ContestEntry, Payout,
-// Settings, LoginAttempt, UserLoginAttempt). This stub exists so `prisma
-// generate` succeeds during initial scaffold.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,4 +5,231 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// --- Player accounts -------------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  displayName   String
+  walletAddress String? // collected lazily, only required once a user actually wins something (see Payout)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique // sha256 of the raw cookie token; raw token is never stored
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// Email-keyed (unlike the admin's IP-keyed LoginAttempt below) because user
+// login is credential-stuffing-against-a-specific-victim territory -- the
+// lockout has to follow the targeted account. A coarse IP rate-limit lives
+// at the route level as a secondary guard.
+model UserLoginAttempt {
+  email       String    @id
+  failCount   Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
+// --- Cricket domain (all seeded/mock data, no external data feed) ----------
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  shortName String
+  logo      String
+  createdAt DateTime @default(now())
+}
+
+model Player {
+  id           String   @id @default(cuid())
+  name         String
+  teamId       String
+  role         String // WK | BAT | BOWL | AR
+  creditValue  Decimal  @db.Decimal(3, 1) // 7.0-10.5, seeded, correlated with skill
+  battingSkill Int
+  bowlingSkill Int
+  photo        String?
+  createdAt    DateTime @default(now())
+}
+
+model Match {
+  id                   String    @id @default(cuid())
+  team1Id              String
+  team2Id              String
+  venue                String
+  format               String    @default("T20")
+  scheduledAt          DateTime
+  status               String    @default("UPCOMING") // UPCOMING | LIVE | COMPLETED
+  currentEventSequence Int       @default(0) // live cursor into MatchEvent, advanced by the admin Advance control
+  totalEvents          Int       @default(0)
+  winnerTeamId         String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+// Pre-generated ball-by-ball log, written once by lib/match-simulator.ts at
+// seed time. "Live" is just progressively revealing these in sequence order.
+model MatchEvent {
+  id                String  @id @default(cuid())
+  matchId           String
+  sequence          Int
+  innings           Int
+  over              Int
+  ballInOver        Int
+  battingTeamId     String
+  bowlingTeamId     String
+  batsmanId         String
+  nonStrikerId      String
+  bowlerId          String
+  runsScored        Int     @default(0)
+  isWide            Boolean @default(false)
+  isNoBall          Boolean @default(false)
+  isWicket          Boolean @default(false)
+  dismissalType     String?
+  dismissedPlayerId String?
+  fielderId         String?
+  assistFielderId   String?
+
+  @@unique([matchId, sequence])
+}
+
+// Aggregate stat line per player per match, recomputed incrementally as
+// MatchEvents are revealed. fantasyPoints is the source of truth the
+// leaderboard reads -- see lib/scoring.ts.
+model PlayerPerformance {
+  id             String   @id @default(cuid())
+  matchId        String
+  playerId       String
+  runs           Int      @default(0)
+  ballsFaced     Int      @default(0)
+  fours          Int      @default(0)
+  sixes          Int      @default(0)
+  isOut          Boolean  @default(false)
+  dismissalType  String?
+  oversBowled    Decimal  @default(0) @db.Decimal(4, 1)
+  runsConceded   Int      @default(0)
+  wickets        Int      @default(0)
+  maidens        Int      @default(0)
+  catches        Int      @default(0)
+  stumpings      Int      @default(0)
+  runOutsDirect  Int      @default(0)
+  runOutsAssist  Int      @default(0)
+  fantasyPoints  Decimal  @default(0) @db.Decimal(6, 1)
+  updatedAt      DateTime @updatedAt
+
+  @@unique([matchId, playerId])
+}
+
+// --- Leagues & contests ------------------------------------------------------
+
+model League {
+  id            String   @id @default(cuid())
+  name          String
+  matchId       String
+  creatorId     String
+  inviteCode    String   @unique
+  entryFeeCents Int      @default(0)
+  maxMembers    Int      @default(20)
+  status        String   @default("OPEN") // OPEN | LOCKED | COMPLETED
+  createdAt     DateTime @default(now())
+}
+
+model Contest {
+  id              String   @id @default(cuid())
+  matchId         String
+  name            String
+  entryFeeCents   Int
+  maxEntries      Int
+  currentEntries  Int      @default(0)
+  prizePoolCents  Int
+  rakeBps         Int      @default(1500) // 15%
+  minEntriesToRun Int      @default(3)
+  status          String   @default("OPEN") // OPEN | LOCKED | LIVE | COMPLETED | FINALIZED | VOIDED
+  createdAt       DateTime @default(now())
+}
+
+// --- Fantasy teams -----------------------------------------------------------
+
+model FantasyTeam {
+  id            String              @id @default(cuid())
+  userId        String
+  matchId       String
+  name          String              @default("My Team")
+  captainId     String
+  viceCaptainId String
+  totalCredits  Decimal             @db.Decimal(4, 1)
+  totalPoints   Decimal             @default(0) @db.Decimal(6, 1)
+  players       FantasyTeamPlayer[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model FantasyTeamPlayer {
+  id            String      @id @default(cuid())
+  fantasyTeamId String
+  fantasyTeam   FantasyTeam @relation(fields: [fantasyTeamId], references: [id])
+  playerId      String
+
+  @@unique([fantasyTeamId, playerId])
+}
+
+model ContestEntry {
+  id                String   @id @default(cuid())
+  userId            String
+  contestId         String?
+  leagueId          String?
+  fantasyTeamId     String
+  entryFeeCents     Int
+  coinvoyageOrderId String?
+  paymentStatus     String   @default("NONE") // NONE | PENDING | COMPLETED | FAILED | REFUNDED
+  rank              Int?
+  prizeCents        Int      @default(0)
+  idempotencyKey    String?  @unique
+  createdAt         DateTime @default(now())
+
+  @@unique([contestId, userId])
+  @@unique([leagueId, userId])
+}
+
+// --- Money ledger (identical shape to coinflip-site's Payout model) --------
+
+model Payout {
+  id              String    @id @default(cuid())
+  contestEntryId  String    @unique
+  amountOwedCents Int
+  chain           String
+  token           String
+  walletAddress   String
+  status          String    @default("PENDING") // PENDING | PAID
+  txNote          String?
+  createdAt       DateTime  @default(now())
+  paidAt          DateTime?
+}
+
+// --- CoinVoyage credentials & admin (identical to sibling apps) -----------
+
+model Settings {
+  id                      Int      @id @default(1)
+  coinVoyageApiKey        String?
+  coinVoyageApiSecret     String?
+  coinVoyageEnv           String?
+  coinVoyageWebhookSecret String?
+  updatedAt               DateTime @updatedAt
+}
+
+// Admin login lockout -- IP-keyed (single shared operator secret, unlike
+// UserLoginAttempt above).
+model LoginAttempt {
+  ip          String    @id
+  failCount   Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
 }
