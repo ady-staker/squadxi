@@ -56,16 +56,22 @@ const ROLE_PLAN: { role: string; count: number }[] = [
   { role: "AR", count: 3 },
 ];
 
+// Wide floors are deliberate: creditValueFor() prices off max(battingSkill,
+// bowlingSkill), so every role needs some genuinely cheap "value pick"
+// players (skill near the floor) alongside expensive stars, or the
+// 100-credit team-builder budget becomes unsatisfiable -- an early version
+// with floors starting at 50-60 priced every player into an ~8.7-10.5 band
+// and made a valid 11-player team nearly impossible to build.
 function skillsForRole(rng: () => number, role: string): { battingSkill: number; bowlingSkill: number } {
   switch (role) {
     case "WK":
-      return { battingSkill: randomSkill(rng, 55, 92), bowlingSkill: randomSkill(rng, 5, 15) };
+      return { battingSkill: randomSkill(rng, 20, 92), bowlingSkill: randomSkill(rng, 5, 15) };
     case "BAT":
-      return { battingSkill: randomSkill(rng, 60, 96), bowlingSkill: randomSkill(rng, 5, 25) };
+      return { battingSkill: randomSkill(rng, 20, 96), bowlingSkill: randomSkill(rng, 5, 25) };
     case "BOWL":
-      return { battingSkill: randomSkill(rng, 15, 45), bowlingSkill: randomSkill(rng, 60, 96) };
+      return { battingSkill: randomSkill(rng, 15, 45), bowlingSkill: randomSkill(rng, 20, 96) };
     case "AR":
-      return { battingSkill: randomSkill(rng, 50, 80), bowlingSkill: randomSkill(rng, 50, 80) };
+      return { battingSkill: randomSkill(rng, 20, 80), bowlingSkill: randomSkill(rng, 20, 80) };
     default:
       return { battingSkill: 50, bowlingSkill: 50 };
   }
@@ -79,6 +85,18 @@ function creditValueFor(battingSkill: number, bowlingSkill: number): string {
 }
 
 async function main() {
+  console.log("Clearing previously seeded cricket-domain rows...");
+  // Dev fixture data only -- safe to wipe and regenerate on every run. Order
+  // matters: children before parents (no onDelete cascade is configured).
+  await prisma.playerPerformance.deleteMany({});
+  await prisma.matchEvent.deleteMany({});
+  await prisma.fantasyTeamPlayer.deleteMany({});
+  await prisma.fantasyTeam.deleteMany({});
+  await prisma.contestEntry.deleteMany({});
+  await prisma.match.deleteMany({});
+  await prisma.player.deleteMany({});
+  await prisma.team.deleteMany({});
+
   console.log("Seeding teams...");
   const teamRows = [];
   for (const t of TEAMS) {
@@ -217,6 +235,7 @@ async function main() {
           oversBowled: perf.oversBowled,
           runsConceded: perf.runsConceded,
           wickets: perf.wickets,
+          bowledOrLbwWickets: perf.bowledOrLbwWickets,
           maidens: perf.maidens,
           catches: perf.catches,
           stumpings: perf.stumpings,

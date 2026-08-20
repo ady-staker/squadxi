@@ -12,8 +12,8 @@ Under active development. See the phase breakdown below for what's built so
 far.
 
 - [x] **Phase 1** — repo scaffold
-- [ ] Phase 2 — data model + seeded mock matches
-- [ ] Phase 3 — player auth (email + password)
+- [x] **Phase 2** — data model + seeded mock matches
+- [x] **Phase 3** — player auth (email + password)
 - [ ] Phase 4 — scoring engine + team builder
 - [ ] Phase 5 — leagues, contests, entry-fee payment
 - [ ] Phase 6 — live match simulation + leaderboard

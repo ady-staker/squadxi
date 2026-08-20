@@ -16,6 +16,7 @@ export type RawPerformance = {
   oversBowled: number; // cricket notation: whole.balls, e.g. 3.4 = 3 overs + 4 balls
   runsConceded: number;
   wickets: number;
+  bowledOrLbwWickets: number;
   maidens: number;
   catches: number;
   stumpings: number;
@@ -34,6 +35,7 @@ function empty(): RawPerformance {
     oversBowled: 0,
     runsConceded: 0,
     wickets: 0,
+    bowledOrLbwWickets: 0,
     maidens: 0,
     catches: 0,
     stumpings: 0,
@@ -85,6 +87,9 @@ export function aggregatePerformances(events: SimEvent[]): Map<string, RawPerfor
       if (ev.dismissalType !== "RUN_OUT") {
         const bowler = get(ev.bowlerId);
         bowler.wickets += 1;
+        if (ev.dismissalType === "BOWLED" || ev.dismissalType === "LBW") {
+          bowler.bowledOrLbwWickets += 1;
+        }
       }
       if (ev.dismissalType === "CAUGHT" && ev.fielderId) {
         get(ev.fielderId).catches += 1;

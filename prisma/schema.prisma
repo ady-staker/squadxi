@@ -117,6 +117,7 @@ model PlayerPerformance {
   oversBowled    Decimal  @default(0) @db.Decimal(4, 1)
   runsConceded   Int      @default(0)
   wickets        Int      @default(0)
+  bowledOrLbwWickets Int  @default(0) // subset of `wickets` that were BOWLED/LBW -- scoring.ts's per-dismissal bonus needs this breakdown, which the aggregate `wickets` count alone can't provide
   maidens        Int      @default(0)
   catches        Int      @default(0)
   stumpings      Int      @default(0)
