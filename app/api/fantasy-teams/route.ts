@@ -87,3 +87,20 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true, fantasyTeam });
 }
+
+export async function GET(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const matchId = searchParams.get("matchId");
+
+  const fantasyTeams = await prisma.fantasyTeam.findMany({
+    where: { userId: user.id, ...(matchId ? { matchId } : {}) },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return NextResponse.json({ fantasyTeams });
+}

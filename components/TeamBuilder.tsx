@@ -246,12 +246,29 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
         </div>
       )}
 
-      {submitError && (
+      {submitError ? (
         <ul className="list-inside list-disc rounded-xl border border-loss/40 bg-loss/10 p-4 text-sm text-loss">
           {submitError.map((e, i) => (
             <li key={i}>{e}</li>
           ))}
         </ul>
+      ) : (
+        // Live validation feedback once all 11 slots are filled (matches
+        // the Captain/VC section's own reveal condition below) -- not just
+        // after a submit attempt, since the Save button is disabled
+        // whenever the team is invalid and would otherwise grey out with
+        // zero explanation (found by actually clicking through the flow:
+        // an 8-players-from-one-team selection did exactly that). Hidden
+        // before all 11 are picked so it doesn't nag about incomplete role
+        // counts while a user is still actively selecting.
+        !validation.valid &&
+        selected.length === SQUAD_SIZE && (
+          <ul className="list-inside list-disc rounded-xl border border-caution/40 bg-caution/10 p-4 text-sm text-caution">
+            {validation.errors.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        )
       )}
 
       <button

@@ -19,7 +19,7 @@ far.
 - [x] **Phase 6** — live match simulation + leaderboard
 - [x] **Phase 7** — contest finalization + payouts
 - [x] **Phase 8** — admin dashboard (overview, refunds, payout queue)
-- [ ] Phase 9 — frontend polish
+- [x] **Phase 9** — frontend polish
 - [ ] Phase 10 — deploy
 
 ## Stack
