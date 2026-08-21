@@ -28,7 +28,9 @@ export function MatchList() {
   useEffect(() => {
     fetch("/api/matches")
       .then((res) => res.json())
-      .then((data) => (data.error ? setError(data.error) : setMatches(data.matches)))
+      .then((data) =>
+        data.error ? setError(data.error) : setMatches(data.matches),
+      )
       .catch(() => setError("Failed to load matches."));
   }, []);
 
@@ -51,7 +53,11 @@ export function MatchList() {
             {g.matches.map((m) => (
               <Link
                 key={m.id}
-                href={m.status === "UPCOMING" ? `/matches/${m.id}` : `/matches/${m.id}/live`}
+                href={
+                  m.status === "UPCOMING"
+                    ? `/matches/${m.id}`
+                    : `/matches/${m.id}/live`
+                }
                 className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition hover:border-accent/50"
               >
                 <div>

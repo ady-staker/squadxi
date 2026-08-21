@@ -11,7 +11,9 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const voidedContests = await prisma.contest.findMany({ where: { status: "VOIDED" } });
+  const voidedContests = await prisma.contest.findMany({
+    where: { status: "VOIDED" },
+  });
   const voidedContestIds = voidedContests.map((c) => c.id);
   const contestById = new Map(voidedContests.map((c) => [c.id, c]));
 
@@ -28,7 +30,9 @@ export async function GET() {
     contestEntryId: e.id,
     displayName: userById.get(e.userId)?.displayName ?? "Unknown",
     email: userById.get(e.userId)?.email ?? null,
-    contestName: e.contestId ? (contestById.get(e.contestId)?.name ?? null) : null,
+    contestName: e.contestId
+      ? (contestById.get(e.contestId)?.name ?? null)
+      : null,
     entryFeeCents: e.entryFeeCents,
     coinvoyageOrderId: e.coinvoyageOrderId,
     createdAt: e.createdAt,

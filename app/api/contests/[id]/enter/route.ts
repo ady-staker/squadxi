@@ -5,17 +5,32 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { coinvoyageCredentials } from "@/lib/coinvoyage";
 import { BUSINESS_EMAIL, BUSINESS_NAME } from "@/lib/business";
-import { applyContestEntryStatus, releaseContestSlotStandalone } from "@/lib/contest-fulfillment";
-import { isFailureTerminalStatus, isOrderStatus, logUnrecognizedStatus } from "@/lib/order-status";
+import {
+  applyContestEntryStatus,
+  releaseContestSlotStandalone,
+} from "@/lib/contest-fulfillment";
+import {
+  isFailureTerminalStatus,
+  isOrderStatus,
+  logUnrecognizedStatus,
+} from "@/lib/order-status";
 
 function isUniqueConstraintViolation(err: unknown): boolean {
-  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002"
+  );
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } },
+) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
+    return NextResponse.json(
+      { error: "You must be signed in." },
+      { status: 401 },
+    );
   }
 
   let body: unknown;
@@ -29,14 +44,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
     idempotencyKey?: unknown;
   };
   if (typeof fantasyTeamId !== "string" || fantasyTeamId.length === 0) {
-    return NextResponse.json({ error: "A fantasy team is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A fantasy team is required." },
+      { status: 400 },
+    );
   }
   if (
     idempotencyKey !== undefined &&
     idempotencyKey !== null &&
     (typeof idempotencyKey !== "string" || idempotencyKey.length === 0)
   ) {
-    return NextResponse.json({ error: "Invalid idempotency key." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid idempotency key." },
+      { status: 400 },
+    );
   }
 
   const contestId = params.id;
@@ -45,26 +66,39 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Contest not found." }, { status: 404 });
   }
   if (contest.status !== "OPEN") {
-    return NextResponse.json({ error: "This contest is no longer open for entries." }, { status: 409 });
+    return NextResponse.json(
+      { error: "This contest is no longer open for entries." },
+      { status: 409 },
+    );
   }
 
-  const fantasyTeam = await prisma.fantasyTeam.findUnique({ where: { id: fantasyTeamId } });
+  const fantasyTeam = await prisma.fantasyTeam.findUnique({
+    where: { id: fantasyTeamId },
+  });
   if (!fantasyTeam || fantasyTeam.userId !== user.id) {
-    return NextResponse.json({ error: "Fantasy team not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Fantasy team not found." },
+      { status: 404 },
+    );
   }
   if (fantasyTeam.matchId !== contest.matchId) {
     return NextResponse.json(
       { error: "That team was built for a different match than this contest." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   // Idempotent replay: a retried/duplicate submission returns the original
   // entry instead of claiming a second slot / creating a second invoice.
   if (idempotencyKey) {
-    const existing = await prisma.contestEntry.findUnique({ where: { idempotencyKey } });
+    const existing = await prisma.contestEntry.findUnique({
+      where: { idempotencyKey },
+    });
     if (existing) {
-      if (!isOrderStatus(existing.paymentStatus) || !isFailureTerminalStatus(existing.paymentStatus)) {
+      if (
+        !isOrderStatus(existing.paymentStatus) ||
+        !isFailureTerminalStatus(existing.paymentStatus)
+      ) {
         return NextResponse.json({
           contestEntryId: existing.id,
           orderId: existing.coinvoyageOrderId,
@@ -73,7 +107,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
       }
       // Dead attempt (EXPIRED/FAILED/REFUNDED) -- free the key and fall
       // through to create a fresh entry, same as the checkout-route pattern.
-      await prisma.contestEntry.update({ where: { id: existing.id }, data: { idempotencyKey: null } });
+      await prisma.contestEntry.update({
+        where: { id: existing.id },
+        data: { idempotencyKey: null },
+      });
     }
   }
 
@@ -81,17 +118,27 @@ export async function POST(request: Request, { params }: { params: { id: string 
     where: { contestId_userId: { contestId, userId: user.id } },
   });
   if (existingEntry) {
-    return NextResponse.json({ error: "You've already entered this contest." }, { status: 409 });
+    return NextResponse.json(
+      { error: "You've already entered this contest." },
+      { status: 409 },
+    );
   }
 
   // Atomic capacity check -- the real guard against overselling contest
   // slots under concurrency, not any pre-check above.
   const claim = await prisma.contest.updateMany({
-    where: { id: contestId, status: "OPEN", currentEntries: { lt: contest.maxEntries } },
+    where: {
+      id: contestId,
+      status: "OPEN",
+      currentEntries: { lt: contest.maxEntries },
+    },
     data: { currentEntries: { increment: 1 } },
   });
   if (claim.count !== 1) {
-    return NextResponse.json({ error: "This contest just filled up." }, { status: 409 });
+    return NextResponse.json(
+      { error: "This contest just filled up." },
+      { status: 409 },
+    );
   }
 
   // Free entry: no CoinVoyage call needed.
@@ -108,11 +155,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
           idempotencyKey: idempotencyKey ?? null,
         },
       });
-      return NextResponse.json({ contestEntryId: entry.id, orderId: null, paymentStatus: "COMPLETED" });
+      return NextResponse.json({
+        contestEntryId: entry.id,
+        orderId: null,
+        paymentStatus: "COMPLETED",
+      });
     } catch (err) {
       await releaseContestSlotStandalone(contestId);
       if (isUniqueConstraintViolation(err)) {
-        return NextResponse.json({ error: "You've already entered this contest." }, { status: 409 });
+        return NextResponse.json(
+          { error: "You've already entered this contest." },
+          { status: 409 },
+        );
       }
       throw err;
     }
@@ -125,8 +179,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   } catch (err) {
     await releaseContestSlotStandalone(contestId);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "CoinVoyage is not configured." },
-      { status: 500 }
+      {
+        error:
+          err instanceof Error ? err.message : "CoinVoyage is not configured.",
+      },
+      { status: 500 },
     );
   }
 
@@ -152,33 +209,46 @@ export async function POST(request: Request, { params }: { params: { id: string 
           },
         ],
       },
-      apiSecret
+      apiSecret,
     );
     if (error || !data || !data.order_id) {
       await releaseContestSlotStandalone(contestId);
       console.error(
         `createInvoice returned an error or no linked order for internalEntryId=${internalEntryId}`,
-        error
+        error,
       );
       return NextResponse.json(
-        { error: error?.message ?? "Failed to create your invoice with CoinVoyage." },
-        { status: 502 }
+        {
+          error:
+            error?.message ?? "Failed to create your invoice with CoinVoyage.",
+        },
+        { status: 502 },
       );
     }
     invoice = data;
   } catch (err) {
     await releaseContestSlotStandalone(contestId);
-    console.error(`CoinVoyage createInvoice threw for internalEntryId=${internalEntryId}`, err);
-    return NextResponse.json({ error: "Failed to reach CoinVoyage. Please try again." }, { status: 502 });
+    console.error(
+      `CoinVoyage createInvoice threw for internalEntryId=${internalEntryId}`,
+      err,
+    );
+    return NextResponse.json(
+      { error: "Failed to reach CoinVoyage. Please try again." },
+      { status: 502 },
+    );
   }
 
   const linkedOrder = Array.isArray(invoice.orders)
     ? invoice.orders.find((o) => o.id === invoice.order_id)
     : undefined;
   const remoteStatus = linkedOrder?.status;
-  const hasRecognizedStatus = typeof remoteStatus === "string" && isOrderStatus(remoteStatus);
+  const hasRecognizedStatus =
+    typeof remoteStatus === "string" && isOrderStatus(remoteStatus);
   if (!hasRecognizedStatus && remoteStatus) {
-    logUnrecognizedStatus(remoteStatus, `for coinvoyageOrderId=${invoice.order_id}`);
+    logUnrecognizedStatus(
+      remoteStatus,
+      `for coinvoyageOrderId=${invoice.order_id}`,
+    );
   }
   const initialStatus = hasRecognizedStatus ? remoteStatus : "AWAITING_PAYMENT";
 
@@ -200,12 +270,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
     await releaseContestSlotStandalone(contestId);
 
     if (isUniqueConstraintViolation(err) && idempotencyKey) {
-      const winner = await prisma.contestEntry.findUnique({ where: { idempotencyKey } });
+      const winner = await prisma.contestEntry.findUnique({
+        where: { idempotencyKey },
+      });
       if (winner) {
         console.error(
           `Orphaned CoinVoyage invoice from a lost idempotency race: ` +
             `coinvoyageOrderId=${invoice.order_id} internalEntryId=${internalEntryId} ` +
-            `idempotencyKey=${idempotencyKey} (winner: ${winner.coinvoyageOrderId})`
+            `idempotencyKey=${idempotencyKey} (winner: ${winner.coinvoyageOrderId})`,
         );
         return NextResponse.json({
           contestEntryId: winner.id,
@@ -218,11 +290,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
     console.error(
       `Orphaned CoinVoyage invoice: local ContestEntry failed to save for ` +
         `coinvoyageOrderId=${invoice.order_id} internalEntryId=${internalEntryId}`,
-      err
+      err,
     );
     return NextResponse.json(
       { error: "Something went wrong saving your entry. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -232,7 +304,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
     try {
       await applyContestEntryStatus(entry.id, remoteStatus, new Date());
     } catch (err) {
-      console.error(`Failed to release slot for already-terminal entry ${entry.id}`, err);
+      console.error(
+        `Failed to release slot for already-terminal entry ${entry.id}`,
+        err,
+      );
     }
   }
 

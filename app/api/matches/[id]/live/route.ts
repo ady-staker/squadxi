@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { summarizeInnings } from "@/lib/live-advance";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } },
+) {
   const match = await prisma.match.findUnique({ where: { id: params.id } });
   if (!match) {
     return NextResponse.json({ error: "Match not found." }, { status: 404 });
@@ -11,7 +14,13 @@ export async function GET(request: Request, { params }: { params: { id: string }
   const revealedEvents = await prisma.matchEvent.findMany({
     where: { matchId: match.id, sequence: { lt: match.currentEventSequence } },
     orderBy: { sequence: "asc" },
-    select: { innings: true, runsScored: true, isWicket: true, isWide: true, isNoBall: true },
+    select: {
+      innings: true,
+      runsScored: true,
+      isWicket: true,
+      isWide: true,
+      isNoBall: true,
+    },
   });
   const innings = summarizeInnings(revealedEvents);
 
@@ -28,7 +37,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
   } else {
     // No contest/league scope given -- fall back to every fantasy team built
     // for this match, useful for a quick admin-side check of the whole field.
-    const teams = await prisma.fantasyTeam.findMany({ where: { matchId: match.id } });
+    const teams = await prisma.fantasyTeam.findMany({
+      where: { matchId: match.id },
+    });
     entries = teams.map((t) => ({ userId: t.userId, fantasyTeam: t }));
   }
 

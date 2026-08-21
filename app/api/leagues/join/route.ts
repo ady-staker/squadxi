@@ -5,16 +5,25 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { coinvoyageCredentials } from "@/lib/coinvoyage";
 import { BUSINESS_EMAIL, BUSINESS_NAME } from "@/lib/business";
-import { isFailureTerminalStatus, isOrderStatus, logUnrecognizedStatus } from "@/lib/order-status";
+import {
+  isFailureTerminalStatus,
+  isOrderStatus,
+  logUnrecognizedStatus,
+} from "@/lib/order-status";
 
 function isUniqueConstraintViolation(err: unknown): boolean {
-  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002"
+  );
 }
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
+    return NextResponse.json(
+      { error: "You must be signed in." },
+      { status: 401 },
+    );
   }
 
   let body: unknown;
@@ -28,30 +37,47 @@ export async function POST(request: Request) {
     fantasyTeamId?: unknown;
   };
   if (typeof inviteCode !== "string" || inviteCode.trim().length === 0) {
-    return NextResponse.json({ error: "An invite code is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "An invite code is required." },
+      { status: 400 },
+    );
   }
   if (typeof fantasyTeamId !== "string" || fantasyTeamId.length === 0) {
-    return NextResponse.json({ error: "A fantasy team is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A fantasy team is required." },
+      { status: 400 },
+    );
   }
 
   const league = await prisma.league.findUnique({
     where: { inviteCode: inviteCode.trim().toUpperCase() },
   });
   if (!league) {
-    return NextResponse.json({ error: "Invalid invite code." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Invalid invite code." },
+      { status: 404 },
+    );
   }
   if (league.status !== "OPEN") {
-    return NextResponse.json({ error: "This league is no longer open to new members." }, { status: 409 });
+    return NextResponse.json(
+      { error: "This league is no longer open to new members." },
+      { status: 409 },
+    );
   }
 
-  const fantasyTeam = await prisma.fantasyTeam.findUnique({ where: { id: fantasyTeamId } });
+  const fantasyTeam = await prisma.fantasyTeam.findUnique({
+    where: { id: fantasyTeamId },
+  });
   if (!fantasyTeam || fantasyTeam.userId !== user.id) {
-    return NextResponse.json({ error: "Fantasy team not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Fantasy team not found." },
+      { status: 404 },
+    );
   }
   if (fantasyTeam.matchId !== league.matchId) {
     return NextResponse.json(
       { error: "That team was built for a different match than this league." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -59,7 +85,10 @@ export async function POST(request: Request) {
     where: { leagueId_userId: { leagueId: league.id, userId: user.id } },
   });
   if (existingEntry) {
-    return NextResponse.json({ error: "You've already joined this league." }, { status: 409 });
+    return NextResponse.json(
+      { error: "You've already joined this league." },
+      { status: 409 },
+    );
   }
 
   // Non-atomic capacity check -- acceptable here (unlike Contest's atomic
@@ -68,9 +97,14 @@ export async function POST(request: Request) {
   // currentEntries counter to reserve/release, so there's nothing to
   // compensate on a later failure below -- the ContestEntry row simply never
   // gets created.
-  const memberCount = await prisma.contestEntry.count({ where: { leagueId: league.id } });
+  const memberCount = await prisma.contestEntry.count({
+    where: { leagueId: league.id },
+  });
   if (memberCount >= league.maxMembers) {
-    return NextResponse.json({ error: "This league is full." }, { status: 409 });
+    return NextResponse.json(
+      { error: "This league is full." },
+      { status: 409 },
+    );
   }
 
   if (league.entryFeeCents === 0) {
@@ -84,10 +118,17 @@ export async function POST(request: Request) {
           paymentStatus: "COMPLETED",
         },
       });
-      return NextResponse.json({ contestEntryId: entry.id, orderId: null, paymentStatus: "COMPLETED" });
+      return NextResponse.json({
+        contestEntryId: entry.id,
+        orderId: null,
+        paymentStatus: "COMPLETED",
+      });
     } catch (err) {
       if (isUniqueConstraintViolation(err)) {
-        return NextResponse.json({ error: "You've already joined this league." }, { status: 409 });
+        return NextResponse.json(
+          { error: "You've already joined this league." },
+          { status: 409 },
+        );
       }
       throw err;
     }
@@ -98,8 +139,11 @@ export async function POST(request: Request) {
     ({ client: apiClient, apiSecret } = await coinvoyageCredentials());
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "CoinVoyage is not configured." },
-      { status: 500 }
+      {
+        error:
+          err instanceof Error ? err.message : "CoinVoyage is not configured.",
+      },
+      { status: 500 },
     );
   }
 
@@ -123,31 +167,44 @@ export async function POST(request: Request) {
           },
         ],
       },
-      apiSecret
+      apiSecret,
     );
     if (error || !data || !data.order_id) {
       console.error(
         `createInvoice returned an error or no linked order for internalEntryId=${internalEntryId}`,
-        error
+        error,
       );
       return NextResponse.json(
-        { error: error?.message ?? "Failed to create your invoice with CoinVoyage." },
-        { status: 502 }
+        {
+          error:
+            error?.message ?? "Failed to create your invoice with CoinVoyage.",
+        },
+        { status: 502 },
       );
     }
     invoice = data;
   } catch (err) {
-    console.error(`CoinVoyage createInvoice threw for internalEntryId=${internalEntryId}`, err);
-    return NextResponse.json({ error: "Failed to reach CoinVoyage. Please try again." }, { status: 502 });
+    console.error(
+      `CoinVoyage createInvoice threw for internalEntryId=${internalEntryId}`,
+      err,
+    );
+    return NextResponse.json(
+      { error: "Failed to reach CoinVoyage. Please try again." },
+      { status: 502 },
+    );
   }
 
   const linkedOrder = Array.isArray(invoice.orders)
     ? invoice.orders.find((o) => o.id === invoice.order_id)
     : undefined;
   const remoteStatus = linkedOrder?.status;
-  const hasRecognizedStatus = typeof remoteStatus === "string" && isOrderStatus(remoteStatus);
+  const hasRecognizedStatus =
+    typeof remoteStatus === "string" && isOrderStatus(remoteStatus);
   if (!hasRecognizedStatus && remoteStatus) {
-    logUnrecognizedStatus(remoteStatus, `for coinvoyageOrderId=${invoice.order_id}`);
+    logUnrecognizedStatus(
+      remoteStatus,
+      `for coinvoyageOrderId=${invoice.order_id}`,
+    );
   }
   const initialStatus = hasRecognizedStatus ? remoteStatus : "AWAITING_PAYMENT";
 
@@ -167,11 +224,11 @@ export async function POST(request: Request) {
     console.error(
       `Orphaned CoinVoyage invoice: local ContestEntry failed to save for ` +
         `coinvoyageOrderId=${invoice.order_id} internalEntryId=${internalEntryId}`,
-      err
+      err,
     );
     return NextResponse.json(
       { error: "Something went wrong saving your entry. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 

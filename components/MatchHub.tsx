@@ -27,7 +27,12 @@ function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-const TERMINAL_PAYMENT_STATUSES = ["COMPLETED", "EXPIRED", "REFUNDED", "FAILED"];
+const TERMINAL_PAYMENT_STATUSES = [
+  "COMPLETED",
+  "EXPIRED",
+  "REFUNDED",
+  "FAILED",
+];
 const STATUS_POLL_MS = 4000;
 
 function EnterContestForm({
@@ -53,7 +58,10 @@ function EnterContestForm({
       const res = await fetch(`/api/contests/${contest.id}/enter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fantasyTeamId: teamId, idempotencyKey: crypto.randomUUID() }),
+        body: JSON.stringify({
+          fantasyTeamId: teamId,
+          idempotencyKey: crypto.randomUUID(),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to enter contest.");
@@ -76,7 +84,12 @@ function EnterContestForm({
   // webhook (unregistered as of first deploy, see README). Stops once the
   // status reaches any terminal state; COMPLETED refreshes the parent list.
   useEffect(() => {
-    if (!entryId || !paymentStatus || TERMINAL_PAYMENT_STATUSES.includes(paymentStatus)) return;
+    if (
+      !entryId ||
+      !paymentStatus ||
+      TERMINAL_PAYMENT_STATUSES.includes(paymentStatus)
+    )
+      return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/contest-entries/${entryId}/status`);
@@ -92,10 +105,18 @@ function EnterContestForm({
 
   if (paymentUrl) {
     if (paymentStatus === "COMPLETED") {
-      return <p className="text-sm font-semibold text-accent">Payment confirmed — you're entered!</p>;
+      return (
+        <p className="text-sm font-semibold text-accent">
+          Payment confirmed — you're entered!
+        </p>
+      );
     }
     if (paymentStatus && TERMINAL_PAYMENT_STATUSES.includes(paymentStatus)) {
-      return <p className="text-sm text-loss">Payment {paymentStatus.toLowerCase()}. Please try entering again.</p>;
+      return (
+        <p className="text-sm text-loss">
+          Payment {paymentStatus.toLowerCase()}. Please try entering again.
+        </p>
+      );
     }
     return (
       <div className="flex flex-col items-end gap-1 text-right">
@@ -108,7 +129,8 @@ function EnterContestForm({
           Complete payment ↗
         </a>
         <p className="text-xs text-muted">
-          Opens CoinVoyage's payment page in a new tab. This updates automatically once paid.
+          Opens CoinVoyage's payment page in a new tab. This updates
+          automatically once paid.
         </p>
       </div>
     );
@@ -134,7 +156,11 @@ function EnterContestForm({
         disabled={submitting || !teamId}
         className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
       >
-        {submitting ? "…" : contest.entryFeeCents === 0 ? "Join free" : `Enter (${formatUsd(contest.entryFeeCents)})`}
+        {submitting
+          ? "…"
+          : contest.entryFeeCents === 0
+            ? "Join free"
+            : `Enter (${formatUsd(contest.entryFeeCents)})`}
       </button>
       {error && <p className="text-xs text-loss">{error}</p>}
     </div>
@@ -169,7 +195,8 @@ function CreateLeagueForm({ matchId }: { matchId: string }) {
   if (inviteCode) {
     return (
       <p className="text-sm text-ink">
-        League created! Invite code: <span className="font-mono font-bold text-accent">{inviteCode}</span>
+        League created! Invite code:{" "}
+        <span className="font-mono font-bold text-accent">{inviteCode}</span>
       </p>
     );
   }
@@ -272,7 +299,9 @@ export function MatchHub({ matchId }: { matchId: string }) {
   useEffect(() => {
     fetch(`/api/matches/${matchId}/players`)
       .then((res) => res.json())
-      .then((data) => (data.error ? setError(data.error) : setMatch(data.match)))
+      .then((data) =>
+        data.error ? setError(data.error) : setMatch(data.match),
+      )
       .catch(() => setError("Failed to load match."));
 
     fetch(`/api/contests?matchId=${matchId}&status=OPEN`)
@@ -300,7 +329,8 @@ export function MatchHub({ matchId }: { matchId: string }) {
         {hasTeams ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-ink">
-              You've built {teams!.length} team{teams!.length > 1 ? "s" : ""} for this match.
+              You've built {teams!.length} team{teams!.length > 1 ? "s" : ""}{" "}
+              for this match.
             </p>
             <Link
               href={`/matches/${matchId}/team-builder`}
@@ -311,7 +341,9 @@ export function MatchHub({ matchId }: { matchId: string }) {
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-ink">Build your XI before joining a league or contest.</p>
+            <p className="text-sm text-ink">
+              Build your XI before joining a league or contest.
+            </p>
             <Link
               href={`/matches/${matchId}/team-builder`}
               className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark"
@@ -323,9 +355,13 @@ export function MatchHub({ matchId }: { matchId: string }) {
       </div>
 
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Public contests</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+          Public contests
+        </h2>
         {contests.length === 0 ? (
-          <p className="text-sm text-muted">No public contests open for this match yet.</p>
+          <p className="text-sm text-muted">
+            No public contests open for this match yet.
+          </p>
         ) : (
           <div className="flex flex-col gap-2">
             {contests.map((c) => (
@@ -336,14 +372,23 @@ export function MatchHub({ matchId }: { matchId: string }) {
                 <div>
                   <p className="font-medium text-ink">{c.name}</p>
                   <p className="text-xs text-muted">
-                    Prize pool <span className="text-gold">{formatUsd(c.prizePoolCents)}</span> ·{" "}
-                    {c.currentEntries}/{c.maxEntries} entered
+                    Prize pool{" "}
+                    <span className="text-gold">
+                      {formatUsd(c.prizePoolCents)}
+                    </span>{" "}
+                    · {c.currentEntries}/{c.maxEntries} entered
                   </p>
                 </div>
                 {hasTeams ? (
-                  <EnterContestForm contest={c} teams={teams!} onEntered={loadTeams} />
+                  <EnterContestForm
+                    contest={c}
+                    teams={teams!}
+                    onEntered={loadTeams}
+                  />
                 ) : (
-                  <span className="text-xs text-muted">Build a team to enter</span>
+                  <span className="text-xs text-muted">
+                    Build a team to enter
+                  </span>
                 )}
               </div>
             ))}
@@ -352,10 +397,14 @@ export function MatchHub({ matchId }: { matchId: string }) {
       </div>
 
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Private leagues</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+          Private leagues
+        </h2>
         <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4">
           <div>
-            <p className="mb-2 text-xs text-muted">Create a league and share the invite code with friends.</p>
+            <p className="mb-2 text-xs text-muted">
+              Create a league and share the invite code with friends.
+            </p>
             <CreateLeagueForm matchId={matchId} />
           </div>
           <div className="border-t border-border pt-4">

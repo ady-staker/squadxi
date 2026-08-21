@@ -11,7 +11,10 @@ export default function LoginPage({
       <h1 className="mb-2 text-2xl font-semibold text-ink">Sign in</h1>
       <p className="mb-8 text-sm text-muted">
         New to SquadXI?{" "}
-        <a href={`/signup?next=${encodeURIComponent(next)}`} className="text-accent underline">
+        <a
+          href={`/signup?next=${encodeURIComponent(next)}`}
+          className="text-accent underline"
+        >
           Create an account
         </a>
         .

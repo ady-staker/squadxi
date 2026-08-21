@@ -1,8 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { generateMatchEvents, type SimPlayer } from "@/lib/match-simulator";
-import { aggregatePerformances, type RawPerformance } from "@/lib/aggregate-performance";
-import { totalMatchPoints, applyMultiplier, type CaptaincyRole } from "@/lib/scoring";
-import { lockEntriesForMatch, finalizeMatchContests } from "@/lib/contest-finalization";
+import {
+  aggregatePerformances,
+  type RawPerformance,
+} from "@/lib/aggregate-performance";
+import {
+  totalMatchPoints,
+  applyMultiplier,
+  type CaptaincyRole,
+} from "@/lib/scoring";
+import {
+  lockEntriesForMatch,
+  finalizeMatchContests,
+} from "@/lib/contest-finalization";
 
 const TRANSACTION_OPTIONS = { timeout: 20000, maxWait: 10000 };
 const DEFAULT_ADVANCE_BY = 6; // one over's worth of legal-and-extra balls, a demo-visible chunk
@@ -20,7 +30,9 @@ async function ensureEventsGenerated(matchId: string): Promise<void> {
   const existingCount = await prisma.matchEvent.count({ where: { matchId } });
   if (existingCount > 0) return;
 
-  const match = await prisma.match.findUniqueOrThrow({ where: { id: matchId } });
+  const match = await prisma.match.findUniqueOrThrow({
+    where: { id: matchId },
+  });
   const [team1Players, team2Players] = await Promise.all([
     prisma.player.findMany({ where: { teamId: match.team1Id } }),
     prisma.player.findMany({ where: { teamId: match.team2Id } }),
@@ -38,7 +50,7 @@ async function ensureEventsGenerated(matchId: string): Promise<void> {
     match.team1Id,
     team1Players.map(toSimPlayer),
     match.team2Id,
-    team2Players.map(toSimPlayer)
+    team2Players.map(toSimPlayer),
   );
 
   await prisma.matchEvent.createMany({
@@ -50,7 +62,11 @@ async function ensureEventsGenerated(matchId: string): Promise<void> {
   });
 }
 
-function captaincyFor(playerId: string, captainId: string, viceCaptainId: string): CaptaincyRole {
+function captaincyFor(
+  playerId: string,
+  captainId: string,
+  viceCaptainId: string,
+): CaptaincyRole {
   if (playerId === captainId) return "CAPTAIN";
   if (playerId === viceCaptainId) return "VICE_CAPTAIN";
   return "NONE";
@@ -73,15 +89,27 @@ export type AdvanceResult = {
  * request, so simplicity/correctness wins over micro-optimizing an
  * infrequent write path.
  */
-export async function advanceMatch(matchId: string, byN: number = DEFAULT_ADVANCE_BY): Promise<AdvanceResult> {
+export async function advanceMatch(
+  matchId: string,
+  byN: number = DEFAULT_ADVANCE_BY,
+): Promise<AdvanceResult> {
   await ensureEventsGenerated(matchId);
 
-  const match = await prisma.match.findUniqueOrThrow({ where: { id: matchId } });
+  const match = await prisma.match.findUniqueOrThrow({
+    where: { id: matchId },
+  });
   if (match.status === "COMPLETED") {
-    return { status: match.status, currentEventSequence: match.currentEventSequence, totalEvents: match.totalEvents };
+    return {
+      status: match.status,
+      currentEventSequence: match.currentEventSequence,
+      totalEvents: match.totalEvents,
+    };
   }
 
-  const nextSequence = Math.min(match.currentEventSequence + byN, match.totalEvents);
+  const nextSequence = Math.min(
+    match.currentEventSequence + byN,
+    match.totalEvents,
+  );
 
   const revealedEvents = await prisma.matchEvent.findMany({
     where: { matchId, sequence: { lt: nextSequence } },
@@ -115,9 +143,15 @@ export async function advanceMatch(matchId: string, byN: number = DEFAULT_ADVANC
       for (const tp of team.players) {
         const perf = perfMap.get(tp.playerId);
         const basePoints = perf ? totalMatchPoints(perf) : 0;
-        totalPoints += applyMultiplier(basePoints, captaincyFor(tp.playerId, team.captainId, team.viceCaptainId));
+        totalPoints += applyMultiplier(
+          basePoints,
+          captaincyFor(tp.playerId, team.captainId, team.viceCaptainId),
+        );
       }
-      await tx.fantasyTeam.update({ where: { id: team.id }, data: { totalPoints } });
+      await tx.fantasyTeam.update({
+        where: { id: team.id },
+        data: { totalPoints },
+      });
     }
   }, TRANSACTION_OPTIONS);
 
@@ -127,7 +161,9 @@ export async function advanceMatch(matchId: string, byN: number = DEFAULT_ADVANC
   // milliseconds where the match is LIVE but a contest is still OPEN is a
   // harmless, self-correcting gap for an admin-driven demo app, not a
   // money-safety concern.
-  const updated = await prisma.match.findUniqueOrThrow({ where: { id: matchId } });
+  const updated = await prisma.match.findUniqueOrThrow({
+    where: { id: matchId },
+  });
   if (wasUpcoming && updated.status !== "UPCOMING") {
     await lockEntriesForMatch(matchId);
   }
@@ -153,7 +189,15 @@ export type InningsSummary = {
  *  innings -- not persisted anywhere, computed fresh on each read since it's
  *  cheap (a few hundred rows at most) and always needs to reflect exactly
  *  what's been revealed as of the read. */
-export function summarizeInnings(events: { innings: number; runsScored: number; isWicket: boolean; isWide: boolean; isNoBall: boolean }[]): InningsSummary[] {
+export function summarizeInnings(
+  events: {
+    innings: number;
+    runsScored: number;
+    isWicket: boolean;
+    isWide: boolean;
+    isNoBall: boolean;
+  }[],
+): InningsSummary[] {
   const byInnings = new Map<number, InningsSummary>();
   for (const e of events) {
     let s = byInnings.get(e.innings);

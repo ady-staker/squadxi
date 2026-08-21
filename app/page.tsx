@@ -13,9 +13,9 @@ export default function HomePage() {
           <span className="text-accent">Win with your squad.</span>
         </h1>
         <p className="max-w-lg text-base text-muted">
-          Pick your 11 within a 100-credit budget, join a league with friends
-          or a public contest, and climb the leaderboard as the match plays
-          out live. Prize pools settle in crypto via CoinVoyage.
+          Pick your 11 within a 100-credit budget, join a league with friends or
+          a public contest, and climb the leaderboard as the match plays out
+          live. Prize pools settle in crypto via CoinVoyage.
         </p>
         <div className="flex gap-3">
           <Link
@@ -38,24 +38,24 @@ export default function HomePage() {
           <p className="mb-2 text-2xl">🏏</p>
           <h2 className="mb-1 font-semibold text-ink">Draft your XI</h2>
           <p className="text-sm text-muted">
-            100 credits, 11 players, role limits enforced — pick a captain
-            for 2x points and a vice-captain for 1.5x.
+            100 credits, 11 players, role limits enforced — pick a captain for
+            2x points and a vice-captain for 1.5x.
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-6">
           <p className="mb-2 text-2xl">👥</p>
           <h2 className="mb-1 font-semibold text-ink">Play your way</h2>
           <p className="text-sm text-muted">
-            Start a free private league with an invite code, or enter a
-            public contest for a real prize pool.
+            Start a free private league with an invite code, or enter a public
+            contest for a real prize pool.
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-6">
           <p className="mb-2 text-2xl">💰</p>
           <h2 className="mb-1 font-semibold text-ink">Track live, get paid</h2>
           <p className="text-sm text-muted">
-            Watch the leaderboard update as the match unfolds. Winnings
-            settle in crypto once the operator reviews and pays out.
+            Watch the leaderboard update as the match unfolds. Winnings settle
+            in crypto once the operator reviews and pays out.
           </p>
         </div>
       </section>

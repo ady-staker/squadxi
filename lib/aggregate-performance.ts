@@ -47,7 +47,9 @@ function empty(): RawPerformance {
 /** Aggregates a (possibly partial) ordered slice of a match's events into a
  *  per-player raw stat line. Only legal balls (not wide/no-ball) count
  *  toward batting/bowling stats, matching real cricket scoring rules. */
-export function aggregatePerformances(events: SimEvent[]): Map<string, RawPerformance> {
+export function aggregatePerformances(
+  events: SimEvent[],
+): Map<string, RawPerformance> {
   const stats = new Map<string, RawPerformance>();
   const get = (playerId: string) => {
     let s = stats.get(playerId);

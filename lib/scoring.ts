@@ -34,7 +34,9 @@ function trueOvers(oversBowled: number): number {
   return whole + balls / 6;
 }
 
-export function scoreBatting(p: Pick<ScoringInput, "runs" | "ballsFaced" | "fours" | "sixes" | "isOut">): number {
+export function scoreBatting(
+  p: Pick<ScoringInput, "runs" | "ballsFaced" | "fours" | "sixes" | "isOut">,
+): number {
   let points = 0;
   points += p.runs;
   points += p.fours * 1;
@@ -66,7 +68,14 @@ export function scoreBatting(p: Pick<ScoringInput, "runs" | "ballsFaced" | "four
 }
 
 export function scoreBowling(
-  p: Pick<ScoringInput, "oversBowled" | "runsConceded" | "wickets" | "bowledOrLbwWickets" | "maidens">
+  p: Pick<
+    ScoringInput,
+    | "oversBowled"
+    | "runsConceded"
+    | "wickets"
+    | "bowledOrLbwWickets"
+    | "maidens"
+  >,
 ): number {
   let points = 0;
   points += p.wickets * 25; // excludes run-outs -- PlayerPerformance.wickets already does (see lib/aggregate-performance.ts)
@@ -99,7 +108,10 @@ export function scoreBowling(
 }
 
 export function scoreFielding(
-  p: Pick<ScoringInput, "catches" | "stumpings" | "runOutsDirect" | "runOutsAssist">
+  p: Pick<
+    ScoringInput,
+    "catches" | "stumpings" | "runOutsDirect" | "runOutsAssist"
+  >,
 ): number {
   let points = 0;
   points += p.catches * 8;
@@ -118,7 +130,10 @@ export function totalMatchPoints(p: ScoringInput): number {
   return scoreBatting(p) + scoreBowling(p) + scoreFielding(p);
 }
 
-export function applyMultiplier(points: number, captaincy: CaptaincyRole): number {
+export function applyMultiplier(
+  points: number,
+  captaincy: CaptaincyRole,
+): number {
   if (captaincy === "CAPTAIN") return points * 2;
   if (captaincy === "VICE_CAPTAIN") return points * 1.5;
   return points;

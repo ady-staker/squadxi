@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { validateFantasyTeam, type TeamBuilderPlayer } from "@/lib/team-builder-rules";
+import {
+  validateFantasyTeam,
+  type TeamBuilderPlayer,
+} from "@/lib/team-builder-rules";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
+    return NextResponse.json(
+      { error: "You must be signed in." },
+      { status: 401 },
+    );
   }
 
   let body: unknown;
@@ -16,7 +22,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const { matchId, playerIds, captainId, viceCaptainId, name } = (body ?? {}) as {
+  const { matchId, playerIds, captainId, viceCaptainId, name } = (body ??
+    {}) as {
     matchId?: unknown;
     playerIds?: unknown;
     captainId?: unknown;
@@ -31,7 +38,10 @@ export async function POST(request: Request) {
     typeof captainId !== "string" ||
     typeof viceCaptainId !== "string"
   ) {
-    return NextResponse.json({ error: "Invalid team submission." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid team submission." },
+      { status: 400 },
+    );
   }
 
   const match = await prisma.match.findUnique({ where: { id: matchId } });
@@ -45,7 +55,7 @@ export async function POST(request: Request) {
   if (match.status !== "UPCOMING") {
     return NextResponse.json(
       { error: "Team selection is closed once a match has started." },
-      { status: 409 }
+      { status: 409 },
     );
   }
 
@@ -59,15 +69,23 @@ export async function POST(request: Request) {
     creditValue: Number(p.creditValue),
   }));
 
-  const result = validateFantasyTeam(pool, playerIds as string[], captainId, viceCaptainId);
+  const result = validateFantasyTeam(
+    pool,
+    playerIds as string[],
+    captainId,
+    viceCaptainId,
+  );
   if (!result.valid) {
-    return NextResponse.json({ error: "Invalid team.", details: result.errors }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid team.", details: result.errors },
+      { status: 400 },
+    );
   }
 
   const poolById = new Map(pool.map((p) => [p.id, p]));
   const totalCredits = (playerIds as string[]).reduce(
     (sum, id) => sum + (poolById.get(id)?.creditValue ?? 0),
-    0
+    0,
   );
 
   const fantasyTeam = await prisma.fantasyTeam.create({
@@ -91,7 +109,10 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
+    return NextResponse.json(
+      { error: "You must be signed in." },
+      { status: 401 },
+    );
   }
 
   const { searchParams } = new URL(request.url);

@@ -46,9 +46,8 @@ export default function AdminPage() {
       <div>
         <h2 className="mb-4 text-xl font-semibold text-ink">Refund Queue</h2>
         <p className="mb-4 text-sm text-muted">
-          Paid entries in contests that voided (didn't reach the minimum
-          entries to run). Refunds are reviewed and triggered by hand, not
-          automatic.
+          Paid entries in contests that voided (didn't reach the minimum entries
+          to run). Refunds are reviewed and triggered by hand, not automatic.
         </p>
         <AdminRefundsPanel />
       </div>

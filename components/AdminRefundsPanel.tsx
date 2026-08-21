@@ -12,7 +12,13 @@ type RefundRow = {
   createdAt: string;
 };
 
-function RefundButton({ contestEntryId, onDone }: { contestEntryId: string; onDone: () => void }) {
+function RefundButton({
+  contestEntryId,
+  onDone,
+}: {
+  contestEntryId: string;
+  onDone: () => void;
+}) {
   const [submitting, setSubmitting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +27,10 @@ function RefundButton({ contestEntryId, onDone }: { contestEntryId: string; onDo
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/contest-entries/${contestEntryId}/refund`, { method: "POST" });
+      const res = await fetch(
+        `/api/admin/contest-entries/${contestEntryId}/refund`,
+        { method: "POST" },
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Refund failed.");
       onDone();
@@ -46,7 +55,9 @@ function RefundButton({ contestEntryId, onDone }: { contestEntryId: string; onDo
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted">Send a real refund via CoinVoyage?</span>
+        <span className="text-xs text-muted">
+          Send a real refund via CoinVoyage?
+        </span>
         <button
           onClick={submit}
           disabled={submitting}
@@ -54,7 +65,10 @@ function RefundButton({ contestEntryId, onDone }: { contestEntryId: string; onDo
         >
           {submitting ? "Refunding…" : "Confirm"}
         </button>
-        <button onClick={() => setConfirming(false)} className="text-xs text-muted hover:text-ink">
+        <button
+          onClick={() => setConfirming(false)}
+          className="text-xs text-muted hover:text-ink"
+        >
           Cancel
         </button>
       </div>
@@ -72,10 +86,13 @@ export function AdminRefundsPanel() {
     try {
       const res = await fetch("/api/admin/refund-queue", { cache: "no-store" });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to load refund queue.");
+      if (!res.ok)
+        throw new Error(json.error ?? "Failed to load refund queue.");
       setRows(json.entries);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load refund queue.");
+      setError(
+        err instanceof Error ? err.message : "Failed to load refund queue.",
+      );
     }
   }
 
@@ -86,7 +103,11 @@ export function AdminRefundsPanel() {
   if (error) return <p className="text-sm text-loss">{error}</p>;
   if (!rows) return <p className="text-sm text-muted">Loading…</p>;
   if (rows.length === 0) {
-    return <p className="text-sm text-muted">No voided-contest refunds waiting for review.</p>;
+    return (
+      <p className="text-sm text-muted">
+        No voided-contest refunds waiting for review.
+      </p>
+    );
   }
 
   return (
@@ -105,7 +126,9 @@ export function AdminRefundsPanel() {
             <tr key={r.contestEntryId} className="border-t border-border">
               <td className="px-3 py-2 text-ink">{r.displayName}</td>
               <td className="px-3 py-2 text-muted">{r.contestName ?? "—"}</td>
-              <td className="px-3 py-2 font-semibold text-caution">${(r.entryFeeCents / 100).toFixed(2)}</td>
+              <td className="px-3 py-2 font-semibold text-caution">
+                ${(r.entryFeeCents / 100).toFixed(2)}
+              </td>
               <td className="px-3 py-2 text-right">
                 <RefundButton contestEntryId={r.contestEntryId} onDone={load} />
               </td>

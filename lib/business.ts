@@ -10,4 +10,6 @@ export const BUSINESS_EMAIL =
 // deployment; SITE_URL is the manual override for local dev / a custom domain.
 export const SITE_URL =
   process.env.SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3005");
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3005");

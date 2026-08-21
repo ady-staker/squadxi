@@ -7,7 +7,9 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const matches = await prisma.match.findMany({ orderBy: { scheduledAt: "asc" } });
+  const matches = await prisma.match.findMany({
+    orderBy: { scheduledAt: "asc" },
+  });
   const teamIds = [...new Set(matches.flatMap((m) => [m.team1Id, m.team2Id]))];
   const teams = await prisma.team.findMany({ where: { id: { in: teamIds } } });
   const teamById = new Map(teams.map((t) => [t.id, t]));

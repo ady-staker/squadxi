@@ -13,13 +13,19 @@ export const TRANSACTION_OPTIONS = { timeout: 15000, maxWait: 10000 };
 // completed entry can still be refunded afterward (admin refund action, or
 // the voided-contest admin-reviewed refund queue), and that must release the
 // contest slot it claimed.
-const ALLOWED_POST_TERMINAL_TRANSITIONS: Partial<Record<OrderStatus, readonly OrderStatus[]>> = {
+const ALLOWED_POST_TERMINAL_TRANSITIONS: Partial<
+  Record<OrderStatus, readonly OrderStatus[]>
+> = {
   COMPLETED: ["REFUNDED"],
 };
 
-function terminalStatusesAllowingTransitionTo(newStatus: OrderStatus): OrderStatus[] {
-  return (Object.keys(ALLOWED_POST_TERMINAL_TRANSITIONS) as OrderStatus[]).filter(
-    (from) => ALLOWED_POST_TERMINAL_TRANSITIONS[from]?.includes(newStatus)
+function terminalStatusesAllowingTransitionTo(
+  newStatus: OrderStatus,
+): OrderStatus[] {
+  return (
+    Object.keys(ALLOWED_POST_TERMINAL_TRANSITIONS) as OrderStatus[]
+  ).filter((from) =>
+    ALLOWED_POST_TERMINAL_TRANSITIONS[from]?.includes(newStatus),
   );
 }
 
@@ -32,7 +38,7 @@ function terminalStatusesAllowingTransitionTo(newStatus: OrderStatus): OrderStat
 async function releaseContestSlot(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
   contestEntryId: string,
-  contestId: string
+  contestId: string,
 ): Promise<void> {
   const claim = await tx.contestEntry.updateMany({
     where: { id: contestEntryId, slotClaimed: true },
@@ -45,7 +51,9 @@ async function releaseContestSlot(
     data: { currentEntries: { decrement: 1 } },
   });
   if (result.count === 0) {
-    console.error(`releaseContestSlot: contest ${contestId} currentEntries already 0.`);
+    console.error(
+      `releaseContestSlot: contest ${contestId} currentEntries already 0.`,
+    );
   }
 }
 
@@ -57,14 +65,18 @@ async function releaseContestSlot(
  *  webhook/poll-driven release above. Failures are logged, not thrown --
  *  every caller is already inside a catch block reporting its own error, and
  *  letting a release failure propagate would abort that reporting entirely. */
-export async function releaseContestSlotStandalone(contestId: string): Promise<void> {
+export async function releaseContestSlotStandalone(
+  contestId: string,
+): Promise<void> {
   try {
     const result = await prisma.contest.updateMany({
       where: { id: contestId, currentEntries: { gt: 0 } },
       data: { currentEntries: { decrement: 1 } },
     });
     if (result.count === 0) {
-      console.error(`releaseContestSlotStandalone: contest ${contestId} currentEntries already 0.`);
+      console.error(
+        `releaseContestSlotStandalone: contest ${contestId} currentEntries already 0.`,
+      );
     }
   } catch (err) {
     console.error(`Failed to release contest slot for ${contestId}`, err);
@@ -86,7 +98,7 @@ export async function releaseContestSlotStandalone(contestId: string): Promise<v
 export async function applyContestEntryStatus(
   contestEntryId: string,
   newStatus: OrderStatus,
-  eventTimestamp: Date
+  eventTimestamp: Date,
 ): Promise<OrderStatus> {
   const allowedFromTerminal = terminalStatusesAllowingTransitionTo(newStatus);
 
@@ -103,7 +115,12 @@ export async function applyContestEntryStatus(
                 : []),
             ],
           },
-          { OR: [{ lastEventAt: null }, { lastEventAt: { lt: eventTimestamp } }] },
+          {
+            OR: [
+              { lastEventAt: null },
+              { lastEventAt: { lt: eventTimestamp } },
+            ],
+          },
         ],
       },
       data: {
@@ -112,7 +129,9 @@ export async function applyContestEntryStatus(
       },
     });
 
-    const current = await tx.contestEntry.findUniqueOrThrow({ where: { id: contestEntryId } });
+    const current = await tx.contestEntry.findUniqueOrThrow({
+      where: { id: contestEntryId },
+    });
     const persistedStatus = current.paymentStatus as OrderStatus;
 
     if (current.contestId && isFailureTerminalStatus(persistedStatus)) {

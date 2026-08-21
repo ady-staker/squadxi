@@ -33,7 +33,8 @@ export async function GET() {
   const matchStatusCounts: Record<string, number> = {};
   for (const row of matchesByStatus) matchStatusCounts[row.status] = row._count;
   const contestStatusCounts: Record<string, number> = {};
-  for (const row of contestsByStatus) contestStatusCounts[row.status] = row._count;
+  for (const row of contestsByStatus)
+    contestStatusCounts[row.status] = row._count;
 
   return NextResponse.json({
     totalUsers,
@@ -41,7 +42,10 @@ export async function GET() {
     contestsByStatus: contestStatusCounts,
     entryFeeVolumeCents: entryFeeVolume._sum.entryFeeCents ?? 0,
     pendingPayoutCount: pendingPayouts.length,
-    pendingPayoutValueCents: pendingPayouts.reduce((sum, p) => sum + p.amountOwedCents, 0),
+    pendingPayoutValueCents: pendingPayouts.reduce(
+      (sum, p) => sum + p.amountOwedCents,
+      0,
+    ),
     recentSignups,
   });
 }

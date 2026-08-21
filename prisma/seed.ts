@@ -39,7 +39,7 @@ type RealRosterTeam = {
   players: RealRosterPlayer[];
 };
 const realRoster: { teams: RealRosterTeam[] } = JSON.parse(
-  readFileSync(join(__dirname, "data", "real-roster.json"), "utf8")
+  readFileSync(join(__dirname, "data", "real-roster.json"), "utf8"),
 );
 
 function pick<T>(rng: () => number, arr: T[]): T {
@@ -141,7 +141,12 @@ async function main() {
   // [team1 index, team2 index, offsetDays from now, status] -- which real
   // teams play, and when, is a simulated schedule (see file-level comment).
   // Negative offsets = past (completed/live), positive = future (upcoming).
-  const matchPlan: { t1: number; t2: number; offsetDays: number; status: "COMPLETED" | "LIVE" | "UPCOMING" }[] = [
+  const matchPlan: {
+    t1: number;
+    t2: number;
+    offsetDays: number;
+    status: "COMPLETED" | "LIVE" | "UPCOMING";
+  }[] = [
     { t1: 0, t2: 1, offsetDays: -6, status: "COMPLETED" },
     { t1: 2, t2: 3, offsetDays: -3, status: "COMPLETED" },
     { t1: 4, t2: 5, offsetDays: 0, status: "LIVE" },
@@ -154,8 +159,12 @@ async function main() {
   ];
 
   const venues = [
-    "Wankhede Arena", "Chinnaswamy Grounds", "Eden Fields", "Feroz Shah Stadium",
-    "Chepauk Park", "Mullanpur Cricket Ground",
+    "Wankhede Arena",
+    "Chinnaswamy Grounds",
+    "Eden Fields",
+    "Feroz Shah Stadium",
+    "Chepauk Park",
+    "Mullanpur Cricket Ground",
   ];
 
   for (const plan of matchPlan) {
@@ -170,7 +179,12 @@ async function main() {
         venue: pick(rng, venues),
         format: "T20",
         scheduledAt,
-        status: plan.status === "UPCOMING" ? "UPCOMING" : plan.status === "LIVE" ? "LIVE" : "COMPLETED",
+        status:
+          plan.status === "UPCOMING"
+            ? "UPCOMING"
+            : plan.status === "LIVE"
+              ? "LIVE"
+              : "COMPLETED",
       },
     });
 
@@ -183,12 +197,13 @@ async function main() {
       team1.id,
       team1Squad,
       team2.id,
-      team2Squad
+      team2Squad,
     );
 
     // LIVE match: only reveal roughly the first third of the log, same as
     // where an admin might be mid-way through clicking Advance.
-    const revealCount = plan.status === "LIVE" ? Math.floor(events.length / 3) : events.length;
+    const revealCount =
+      plan.status === "LIVE" ? Math.floor(events.length / 3) : events.length;
     const revealedEvents = events.slice(0, revealCount);
 
     await prisma.matchEvent.createMany({
@@ -252,7 +267,7 @@ async function main() {
     });
 
     console.log(
-      `  ${team1.shortName} vs ${team2.shortName} (${plan.status}): ${revealCount}/${events.length} events revealed`
+      `  ${team1.shortName} vs ${team2.shortName} (${plan.status}): ${revealCount}/${events.length} events revealed`,
     );
   }
 

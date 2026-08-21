@@ -33,7 +33,10 @@ export function AdminLoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-border bg-surface p-6">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 rounded-2xl border border-border bg-surface p-6"
+    >
       <input
         type="password"
         placeholder="Admin password"

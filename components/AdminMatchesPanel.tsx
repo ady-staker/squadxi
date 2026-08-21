@@ -12,7 +12,13 @@ type MatchRow = {
   team2: string;
 };
 
-function CreateContestForm({ matchId, onDone }: { matchId: string; onDone: () => void }) {
+function CreateContestForm({
+  matchId,
+  onDone,
+}: {
+  matchId: string;
+  onDone: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("Head to Head");
   const [entryFee, setEntryFee] = useState("5.00");
@@ -37,14 +43,21 @@ function CreateContestForm({ matchId, onDone }: { matchId: string; onDone: () =>
       const res = await fetch("/api/admin/contests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId, name, entryFeeCents, maxEntries: maxEntriesNum }),
+        body: JSON.stringify({
+          matchId,
+          name,
+          entryFeeCents,
+          maxEntries: maxEntriesNum,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to create contest.");
       setOpen(false);
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create contest.");
+      setError(
+        err instanceof Error ? err.message : "Failed to create contest.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -101,7 +114,13 @@ function CreateContestForm({ matchId, onDone }: { matchId: string; onDone: () =>
   );
 }
 
-function AdvanceButton({ matchId, onDone }: { matchId: string; onDone: () => void }) {
+function AdvanceButton({
+  matchId,
+  onDone,
+}: {
+  matchId: string;
+  onDone: () => void;
+}) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

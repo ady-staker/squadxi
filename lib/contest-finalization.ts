@@ -23,11 +23,16 @@ export async function lockEntriesForMatch(matchId: string): Promise<void> {
  *  entry (createdAt ascending) -- a deterministic, simple rule; this app
  *  doesn't split a prize between tied entries, each tie-broken rank gets
  *  its own full prize tier. */
-function rankEntries<T extends { id: string; createdAt: Date; fantasyTeam: { totalPoints: unknown } }>(
-  entries: T[]
-): T[] {
+function rankEntries<
+  T extends {
+    id: string;
+    createdAt: Date;
+    fantasyTeam: { totalPoints: unknown };
+  },
+>(entries: T[]): T[] {
   return [...entries].sort((a, b) => {
-    const diff = Number(b.fantasyTeam.totalPoints) - Number(a.fantasyTeam.totalPoints);
+    const diff =
+      Number(b.fantasyTeam.totalPoints) - Number(a.fantasyTeam.totalPoints);
     if (diff !== 0) return diff;
     return a.createdAt.getTime() - b.createdAt.getTime();
   });
@@ -62,7 +67,9 @@ function rankEntries<T extends { id: string; createdAt: Date; fantasyTeam: { tot
  * ad-hoc) -- they're just ranked and marked COMPLETED for a results view.
  */
 export async function finalizeMatchContests(matchId: string): Promise<void> {
-  const contests = await prisma.contest.findMany({ where: { matchId, status: "LOCKED" } });
+  const contests = await prisma.contest.findMany({
+    where: { matchId, status: "LOCKED" },
+  });
 
   for (const contest of contests) {
     const paidEntries = await prisma.contestEntry.findMany({
@@ -71,7 +78,10 @@ export async function finalizeMatchContests(matchId: string): Promise<void> {
     });
 
     if (paidEntries.length < contest.minEntriesToRun) {
-      await prisma.contest.update({ where: { id: contest.id }, data: { status: "VOIDED" } });
+      await prisma.contest.update({
+        where: { id: contest.id },
+        data: { status: "VOIDED" },
+      });
       continue;
     }
 
@@ -81,7 +91,9 @@ export async function finalizeMatchContests(matchId: string): Promise<void> {
       const rank = i + 1;
       const shareIndex = rank - 1;
       const prizeCents =
-        shareIndex < PRIZE_SPLIT.length ? Math.floor(contest.prizePoolCents * PRIZE_SPLIT[shareIndex]) : 0;
+        shareIndex < PRIZE_SPLIT.length
+          ? Math.floor(contest.prizePoolCents * PRIZE_SPLIT[shareIndex])
+          : 0;
 
       await prisma.contestEntry.update({
         where: { id: ranked[i].id },
@@ -106,10 +118,15 @@ export async function finalizeMatchContests(matchId: string): Promise<void> {
       }
     }
 
-    await prisma.contest.update({ where: { id: contest.id }, data: { status: "FINALIZED" } });
+    await prisma.contest.update({
+      where: { id: contest.id },
+      data: { status: "FINALIZED" },
+    });
   }
 
-  const leagues = await prisma.league.findMany({ where: { matchId, status: "LOCKED" } });
+  const leagues = await prisma.league.findMany({
+    where: { matchId, status: "LOCKED" },
+  });
   for (const league of leagues) {
     // Same paid-only filter as contests above -- a member who never
     // finished paying a paid league's entry fee shouldn't appear ranked.
@@ -119,8 +136,14 @@ export async function finalizeMatchContests(matchId: string): Promise<void> {
     });
     const ranked = rankEntries(entries);
     for (let i = 0; i < ranked.length; i++) {
-      await prisma.contestEntry.update({ where: { id: ranked[i].id }, data: { rank: i + 1 } });
+      await prisma.contestEntry.update({
+        where: { id: ranked[i].id },
+        data: { rank: i + 1 },
+      });
     }
-    await prisma.league.update({ where: { id: league.id }, data: { status: "COMPLETED" } });
+    await prisma.league.update({
+      where: { id: league.id },
+      data: { status: "COMPLETED" },
+    });
   }
 }

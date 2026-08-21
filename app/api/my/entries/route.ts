@@ -5,7 +5,10 @@ import { getCurrentUser } from "@/lib/auth";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
+    return NextResponse.json(
+      { error: "You must be signed in." },
+      { status: 401 },
+    );
   }
 
   const entries = await prisma.contestEntry.findMany({
@@ -14,8 +17,12 @@ export async function GET() {
     include: { fantasyTeam: true },
   });
 
-  const contestIds = entries.map((e) => e.contestId).filter((id): id is string => Boolean(id));
-  const leagueIds = entries.map((e) => e.leagueId).filter((id): id is string => Boolean(id));
+  const contestIds = entries
+    .map((e) => e.contestId)
+    .filter((id): id is string => Boolean(id));
+  const leagueIds = entries
+    .map((e) => e.leagueId)
+    .filter((id): id is string => Boolean(id));
   const [contests, leagues] = await Promise.all([
     prisma.contest.findMany({ where: { id: { in: contestIds } } }),
     prisma.league.findMany({ where: { id: { in: leagueIds } } }),
@@ -24,7 +31,9 @@ export async function GET() {
   const leagueById = new Map(leagues.map((l) => [l.id, l]));
 
   const matchIds = [...new Set(entries.map((e) => e.fantasyTeam.matchId))];
-  const matches = await prisma.match.findMany({ where: { id: { in: matchIds } } });
+  const matches = await prisma.match.findMany({
+    where: { id: { in: matchIds } },
+  });
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
   return NextResponse.json({

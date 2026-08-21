@@ -2,10 +2,27 @@
 
 import { useEffect, useState } from "react";
 
-type InningsSummary = { innings: number; runs: number; wickets: number; legalBalls: number };
-type LeaderboardRow = { userId: string; displayName: string; fantasyTeamName: string; totalPoints: number; rank: number };
+type InningsSummary = {
+  innings: number;
+  runs: number;
+  wickets: number;
+  legalBalls: number;
+};
+type LeaderboardRow = {
+  userId: string;
+  displayName: string;
+  fantasyTeamName: string;
+  totalPoints: number;
+  rank: number;
+};
 type LiveData = {
-  match: { id: string; status: string; currentEventSequence: number; totalEvents: number; winnerTeamId: string | null };
+  match: {
+    id: string;
+    status: string;
+    currentEventSequence: number;
+    totalEvents: number;
+    winnerTeamId: string | null;
+  };
   innings: InningsSummary[];
   leaderboard: LeaderboardRow[];
 };
@@ -26,7 +43,9 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
     let cancelled = false;
     async function poll() {
       try {
-        const res = await fetch(`/api/matches/${matchId}/live`, { cache: "no-store" });
+        const res = await fetch(`/api/matches/${matchId}/live`, {
+          cache: "no-store",
+        });
         const json = await res.json();
         if (!cancelled) {
           if (json.error) setError(json.error);
@@ -50,9 +69,12 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
   if (error) return <p className="text-sm text-loss">{error}</p>;
   if (!data) return <p className="text-sm text-muted">Loading…</p>;
 
-  const progressPct = data.match.totalEvents > 0
-    ? Math.round((data.match.currentEventSequence / data.match.totalEvents) * 100)
-    : 0;
+  const progressPct =
+    data.match.totalEvents > 0
+      ? Math.round(
+          (data.match.currentEventSequence / data.match.totalEvents) * 100,
+        )
+      : 0;
 
   return (
     <div className="flex flex-col gap-8">
@@ -71,7 +93,10 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
           </span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
-          <div className="h-full bg-accent transition-all" style={{ width: `${progressPct}%` }} />
+          <div
+            className="h-full bg-accent transition-all"
+            style={{ width: `${progressPct}%` }}
+          />
         </div>
       </div>
 
@@ -80,11 +105,18 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {data.innings.map((inn) => (
-            <div key={inn.innings} className="rounded-xl border border-border bg-surface p-4">
-              <p className="text-xs uppercase tracking-wide text-muted">Innings {inn.innings}</p>
+            <div
+              key={inn.innings}
+              className="rounded-xl border border-border bg-surface p-4"
+            >
+              <p className="text-xs uppercase tracking-wide text-muted">
+                Innings {inn.innings}
+              </p>
               <p className="mt-1 text-2xl font-bold text-ink">
                 {inn.runs}/{inn.wickets}
-                <span className="ml-2 text-sm font-normal text-muted">({formatOvers(inn.legalBalls)} ov)</span>
+                <span className="ml-2 text-sm font-normal text-muted">
+                  ({formatOvers(inn.legalBalls)} ov)
+                </span>
               </p>
             </div>
           ))}
@@ -98,9 +130,13 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
       )}
 
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Leaderboard</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+          Leaderboard
+        </h2>
         {data.leaderboard.length === 0 ? (
-          <p className="text-sm text-muted">No fantasy teams for this match yet.</p>
+          <p className="text-sm text-muted">
+            No fantasy teams for this match yet.
+          </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-sm">
@@ -114,11 +150,20 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
               </thead>
               <tbody>
                 {data.leaderboard.map((row) => (
-                  <tr key={row.userId} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2 font-mono text-muted">{row.rank}</td>
+                  <tr
+                    key={row.userId}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="px-4 py-2 font-mono text-muted">
+                      {row.rank}
+                    </td>
                     <td className="px-4 py-2 text-ink">{row.displayName}</td>
-                    <td className="px-4 py-2 text-muted">{row.fantasyTeamName}</td>
-                    <td className="px-4 py-2 text-right font-semibold text-accent">{row.totalPoints}</td>
+                    <td className="px-4 py-2 text-muted">
+                      {row.fantasyTeamName}
+                    </td>
+                    <td className="px-4 py-2 text-right font-semibold text-accent">
+                      {row.totalPoints}
+                    </td>
                   </tr>
                 ))}
               </tbody>

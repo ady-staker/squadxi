@@ -37,7 +37,7 @@ async function resolveRaw(): Promise<RawCredentials> {
   const settings = await prisma.settings.findUnique({ where: { id: 1 } });
 
   const hasSettingsKeyPair = Boolean(
-    settings?.coinVoyageApiKey || settings?.coinVoyageApiSecret
+    settings?.coinVoyageApiKey || settings?.coinVoyageApiSecret,
   );
   const keyPairSource: CredentialSource = hasSettingsKeyPair
     ? "settings"
@@ -51,7 +51,8 @@ async function resolveRaw(): Promise<RawCredentials> {
     ? (settings?.coinVoyageApiSecret ?? null)
     : (process.env.COIN_VOYAGE_API_SECRET ?? null);
 
-  const environment = settings?.coinVoyageEnv || process.env.COIN_VOYAGE_ENV || null;
+  const environment =
+    settings?.coinVoyageEnv || process.env.COIN_VOYAGE_ENV || null;
   const environmentSource: CredentialSource = settings?.coinVoyageEnv
     ? "settings"
     : process.env.COIN_VOYAGE_ENV
@@ -59,12 +60,15 @@ async function resolveRaw(): Promise<RawCredentials> {
       : "unset";
 
   const webhookSecret =
-    settings?.coinVoyageWebhookSecret || process.env.COIN_VOYAGE_WEBHOOK_SECRET || null;
-  const webhookSecretSource: CredentialSource = settings?.coinVoyageWebhookSecret
-    ? "settings"
-    : process.env.COIN_VOYAGE_WEBHOOK_SECRET
-      ? "env"
-      : "unset";
+    settings?.coinVoyageWebhookSecret ||
+    process.env.COIN_VOYAGE_WEBHOOK_SECRET ||
+    null;
+  const webhookSecretSource: CredentialSource =
+    settings?.coinVoyageWebhookSecret
+      ? "settings"
+      : process.env.COIN_VOYAGE_WEBHOOK_SECRET
+        ? "env"
+        : "unset";
 
   return {
     apiKey,
@@ -90,14 +94,15 @@ type ResolvedCredentials = {
 
 async function resolveCredentials(): Promise<ResolvedCredentials> {
   const raw = await resolveRaw();
-  const configureHint = "Configure it at /admin (Settings) or in .env -- see .env.example.";
+  const configureHint =
+    "Configure it at /admin (Settings) or in .env -- see .env.example.";
 
   if (!raw.apiKey || !raw.apiSecret) {
     throw new Error(
       raw.keyPairSource === "settings"
         ? "CoinVoyage API key and secret must both be set in Settings once " +
-          `either one is -- they're required as a pair. ${configureHint}`
-        : `CoinVoyage API key/secret are not configured. ${configureHint}`
+            `either one is -- they're required as a pair. ${configureHint}`
+        : `CoinVoyage API key/secret are not configured. ${configureHint}`,
     );
   }
   if (!raw.environment || !isValidEnvironment(raw.environment)) {
@@ -105,7 +110,7 @@ async function resolveCredentials(): Promise<ResolvedCredentials> {
       `CoinVoyage environment is missing or invalid ("${raw.environment ?? ""}") -- ` +
         `must be one of: ${VALID_ENVIRONMENTS.join(", ")}. This is required ` +
         "explicitly (no default) so a misconfigured deploy fails loudly instead " +
-        `of silently routing real entries to the wrong environment. ${configureHint}`
+        `of silently routing real entries to the wrong environment. ${configureHint}`,
     );
   }
 
@@ -117,11 +122,21 @@ async function resolveCredentials(): Promise<ResolvedCredentials> {
   };
 }
 
-let cachedClient: { key: string; env: APIEnvironment; client: ReturnType<typeof ApiClient> } | undefined;
+let cachedClient:
+  | { key: string; env: APIEnvironment; client: ReturnType<typeof ApiClient> }
+  | undefined;
 
 function clientFor(apiKey: string, environment: APIEnvironment) {
-  if (!cachedClient || cachedClient.key !== apiKey || cachedClient.env !== environment) {
-    cachedClient = { key: apiKey, env: environment, client: ApiClient({ apiKey, environment }) };
+  if (
+    !cachedClient ||
+    cachedClient.key !== apiKey ||
+    cachedClient.env !== environment
+  ) {
+    cachedClient = {
+      key: apiKey,
+      env: environment,
+      client: ApiClient({ apiKey, environment }),
+    };
   }
   return cachedClient.client;
 }
@@ -144,7 +159,7 @@ export async function coinvoyageWebhookSecret(): Promise<string> {
   if (!webhookSecret) {
     throw new Error(
       "CoinVoyage webhook secret is not configured. Configure it at /admin " +
-        "(Settings) or COIN_VOYAGE_WEBHOOK_SECRET in .env."
+        "(Settings) or COIN_VOYAGE_WEBHOOK_SECRET in .env.",
     );
   }
   return webhookSecret;

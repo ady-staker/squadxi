@@ -11,7 +11,7 @@ function requiredAdminPassword(): string {
   if (!value) {
     throw new Error(
       "ADMIN_PASSWORD is not set -- the /admin dashboard can't be protected " +
-        "without it. Set it in .env (see .env.example)."
+        "without it. Set it in .env (see .env.example).",
     );
   }
   return value;
@@ -26,7 +26,7 @@ function requiredSessionSecret(): string {
     throw new Error(
       "ADMIN_SESSION_SECRET is not set -- required to sign admin session " +
         "cookies. Set it in .env (see .env.example; generate one with " +
-        "`openssl rand -hex 32`)."
+        "`openssl rand -hex 32`).",
     );
   }
   return value;

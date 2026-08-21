@@ -21,13 +21,14 @@ export const ROLE_LIMITS: Record<string, { min: number; max: number }> = {
   AR: { min: 1, max: 4 },
 };
 
-export type ValidationResult = { valid: true } | { valid: false; errors: string[] };
+export type ValidationResult =
+  { valid: true } | { valid: false; errors: string[] };
 
 export function validateFantasyTeam(
   pool: TeamBuilderPlayer[],
   selectedPlayerIds: string[],
   captainId: string,
-  viceCaptainId: string
+  viceCaptainId: string,
 ): ValidationResult {
   const errors: string[] = [];
 
@@ -37,7 +38,9 @@ export function validateFantasyTeam(
   }
 
   if (selectedPlayerIds.length !== SQUAD_SIZE) {
-    errors.push(`Select exactly ${SQUAD_SIZE} players (got ${selectedPlayerIds.length}).`);
+    errors.push(
+      `Select exactly ${SQUAD_SIZE} players (got ${selectedPlayerIds.length}).`,
+    );
   }
 
   const poolById = new Map(pool.map((p) => [p.id, p]));
@@ -57,11 +60,16 @@ export function validateFantasyTeam(
     const totalCredits = selected.reduce((sum, p) => sum + p.creditValue, 0);
     if (totalCredits > TOTAL_CREDITS) {
       errors.push(
-        `Team costs ${totalCredits.toFixed(1)} credits, over the ${TOTAL_CREDITS}-credit budget.`
+        `Team costs ${totalCredits.toFixed(1)} credits, over the ${TOTAL_CREDITS}-credit budget.`,
       );
     }
 
-    const roleCounts: Record<string, number> = { WK: 0, BAT: 0, BOWL: 0, AR: 0 };
+    const roleCounts: Record<string, number> = {
+      WK: 0,
+      BAT: 0,
+      BOWL: 0,
+      AR: 0,
+    };
     const realTeamCounts = new Map<string, number>();
     for (const p of selected) {
       roleCounts[p.role] = (roleCounts[p.role] ?? 0) + 1;
@@ -70,13 +78,17 @@ export function validateFantasyTeam(
 
     for (const [role, { min, max }] of Object.entries(ROLE_LIMITS)) {
       const count = roleCounts[role] ?? 0;
-      if (count < min) errors.push(`Need at least ${min} ${role} (have ${count}).`);
-      if (count > max) errors.push(`No more than ${max} ${role} allowed (have ${count}).`);
+      if (count < min)
+        errors.push(`Need at least ${min} ${role} (have ${count}).`);
+      if (count > max)
+        errors.push(`No more than ${max} ${role} allowed (have ${count}).`);
     }
 
     for (const [teamId, count] of realTeamCounts) {
       if (count > MAX_PER_REAL_TEAM) {
-        errors.push(`No more than ${MAX_PER_REAL_TEAM} players from one real-world team (have ${count}).`);
+        errors.push(
+          `No more than ${MAX_PER_REAL_TEAM} players from one real-world team (have ${count}).`,
+        );
       }
     }
   }

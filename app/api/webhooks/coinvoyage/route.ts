@@ -15,7 +15,8 @@ type WebhookPayload = {
 function isValidWebhookPayload(value: unknown): value is WebhookPayload {
   if (!value || typeof value !== "object") return false;
   const v = value as Partial<WebhookPayload>;
-  if (typeof v.event !== "string" || typeof v.delivered_at !== "string") return false;
+  if (typeof v.event !== "string" || typeof v.delivered_at !== "string")
+    return false;
   if (isNaN(new Date(v.delivered_at).getTime())) return false;
   if (!v.order || typeof v.order !== "object") return false;
   const order = v.order as Partial<WebhookPayload["order"]>;
@@ -34,11 +35,19 @@ export async function POST(request: Request) {
   try {
     webhookSecret = await coinvoyageWebhookSecret();
   } catch (err) {
-    console.error("Webhook received but COIN_VOYAGE_WEBHOOK_SECRET is not set", err);
-    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+    console.error(
+      "Webhook received but COIN_VOYAGE_WEBHOOK_SECRET is not set",
+      err,
+    );
+    return NextResponse.json(
+      { error: "Webhook not configured" },
+      { status: 500 },
+    );
   }
 
-  const expectedSignature = createHmac("sha256", webhookSecret).update(rawBody).digest("base64");
+  const expectedSignature = createHmac("sha256", webhookSecret)
+    .update(rawBody)
+    .digest("base64");
   if (!constantTimeEqual(signatureHeader, expectedSignature)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
@@ -67,7 +76,10 @@ export async function POST(request: Request) {
   }
 
   if (!isOrderStatus(payload.order.status)) {
-    logUnrecognizedStatus(payload.order.status, `via webhook for contest entry ${entry.id}`);
+    logUnrecognizedStatus(
+      payload.order.status,
+      `via webhook for contest entry ${entry.id}`,
+    );
     return NextResponse.json({ received: true });
   }
 
@@ -75,7 +87,10 @@ export async function POST(request: Request) {
     const deliveredAt = new Date(payload.delivered_at);
     await applyContestEntryStatus(entry.id, payload.order.status, deliveredAt);
   } catch (err) {
-    console.error(`Failed to apply webhook status for contest entry ${entry.id}`, err);
+    console.error(
+      `Failed to apply webhook status for contest entry ${entry.id}`,
+      err,
+    );
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 

@@ -29,7 +29,9 @@ export function MyEntries() {
   useEffect(() => {
     fetch("/api/my/entries", { cache: "no-store" })
       .then((res) => res.json())
-      .then((data) => (data.error ? setError(data.error) : setEntries(data.entries)))
+      .then((data) =>
+        data.error ? setError(data.error) : setEntries(data.entries),
+      )
       .catch(() => setError("Failed to load your entries."));
   }, []);
 
@@ -52,7 +54,11 @@ export function MyEntries() {
       {entries.map((e) => (
         <Link
           key={e.id}
-          href={e.matchStatus === "UPCOMING" ? `/matches/${e.matchId}` : `/matches/${e.matchId}/live`}
+          href={
+            e.matchStatus === "UPCOMING"
+              ? `/matches/${e.matchId}`
+              : `/matches/${e.matchId}/live`
+          }
           className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 transition hover:border-accent/50"
         >
           <div>
@@ -78,7 +84,9 @@ export function MyEntries() {
             {e.prizeCents > 0 && (
               <div>
                 <p className="text-xs text-muted">Prize</p>
-                <p className="font-semibold text-gold">${(e.prizeCents / 100).toFixed(2)}</p>
+                <p className="font-semibold text-gold">
+                  ${(e.prizeCents / 100).toFixed(2)}
+                </p>
               </div>
             )}
             <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted">

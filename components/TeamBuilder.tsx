@@ -55,7 +55,11 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
         setMatch(data.match);
         setPlayers(data.players);
       })
-      .catch((err) => setLoadError(err instanceof Error ? err.message : "Failed to load match."))
+      .catch((err) =>
+        setLoadError(
+          err instanceof Error ? err.message : "Failed to load match.",
+        ),
+      )
       .finally(() => setLoading(false));
   }, [matchId]);
 
@@ -67,13 +71,23 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
   }, [match]);
 
   const pool: TeamBuilderPlayer[] = useMemo(
-    () => players.map((p) => ({ id: p.id, teamId: p.teamId, role: p.role, creditValue: p.creditValue })),
-    [players]
+    () =>
+      players.map((p) => ({
+        id: p.id,
+        teamId: p.teamId,
+        role: p.role,
+        creditValue: p.creditValue,
+      })),
+    [players],
   );
 
   const creditsUsed = useMemo(
-    () => selected.reduce((sum, id) => sum + (players.find((p) => p.id === id)?.creditValue ?? 0), 0),
-    [selected, players]
+    () =>
+      selected.reduce(
+        (sum, id) => sum + (players.find((p) => p.id === id)?.creditValue ?? 0),
+        0,
+      ),
+    [selected, players],
   );
   const creditsRemaining = TOTAL_CREDITS - creditsUsed;
 
@@ -88,7 +102,7 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
 
   const validation = useMemo(
     () => validateFantasyTeam(pool, selected, captainId, viceCaptainId),
-    [pool, selected, captainId, viceCaptainId]
+    [pool, selected, captainId, viceCaptainId],
   );
 
   function togglePlayer(id: string) {
@@ -114,16 +128,27 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
       const res = await fetch("/api/fantasy-teams", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId, playerIds: selected, captainId, viceCaptainId }),
+        body: JSON.stringify({
+          matchId,
+          playerIds: selected,
+          captainId,
+          viceCaptainId,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.details ? data.details.join(" ") : data.error ?? "Failed to save team.");
+        throw new Error(
+          data.details
+            ? data.details.join(" ")
+            : (data.error ?? "Failed to save team."),
+        );
       }
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
-      setSubmitError([err instanceof Error ? err.message : "Failed to save team."]);
+      setSubmitError([
+        err instanceof Error ? err.message : "Failed to save team.",
+      ]);
     } finally {
       setSubmitting(false);
     }
@@ -144,7 +169,9 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
 
       <div className="sticky top-4 z-10 flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-surface p-4">
         <div className="flex items-baseline gap-1.5">
-          <span className={`text-xl font-bold ${creditsRemaining < 0 ? "text-loss" : "text-gold"}`}>
+          <span
+            className={`text-xl font-bold ${creditsRemaining < 0 ? "text-loss" : "text-gold"}`}
+          >
             {creditsRemaining.toFixed(1)}
           </span>
           <span className="text-xs text-muted">credits left</span>
@@ -158,7 +185,8 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
             key={role}
             className="rounded-full border border-border px-3 py-1 text-xs text-muted"
           >
-            {role} {roleCounts[role] ?? 0}/{ROLE_LIMITS[role].min}-{ROLE_LIMITS[role].max}
+            {role} {roleCounts[role] ?? 0}/{ROLE_LIMITS[role].min}-
+            {ROLE_LIMITS[role].max}
           </span>
         ))}
         <span className="rounded-full border border-border px-3 py-1 text-xs text-muted">
@@ -190,9 +218,13 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
                   >
                     <div>
                       <p className="text-sm font-medium text-ink">{p.name}</p>
-                      <p className="text-xs text-muted">{team?.shortName ?? p.teamId}</p>
+                      <p className="text-xs text-muted">
+                        {team?.shortName ?? p.teamId}
+                      </p>
                     </div>
-                    <span className="text-sm font-semibold text-gold">{p.creditValue.toFixed(1)}</span>
+                    <span className="text-sm font-semibold text-gold">
+                      {p.creditValue.toFixed(1)}
+                    </span>
                   </button>
                 );
               })}

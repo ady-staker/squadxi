@@ -18,19 +18,28 @@ export async function Nav() {
         </Link>
 
         <nav className="flex items-center gap-6 text-sm">
-          <Link href="/matches" className="text-muted transition hover:text-ink">
+          <Link
+            href="/matches"
+            className="text-muted transition hover:text-ink"
+          >
             Matches
           </Link>
           {user ? (
             <>
-              <Link href="/dashboard" className="text-muted transition hover:text-ink">
+              <Link
+                href="/dashboard"
+                className="text-muted transition hover:text-ink"
+              >
                 My Leagues
               </Link>
               <LogoutButton />
             </>
           ) : (
             <>
-              <Link href="/login" className="text-muted transition hover:text-ink">
+              <Link
+                href="/login"
+                className="text-muted transition hover:text-ink"
+              >
                 Sign in
               </Link>
               <Link

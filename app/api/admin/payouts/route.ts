@@ -12,8 +12,14 @@ export async function GET() {
   }
 
   const [pendingPayouts, paidPayouts] = await Promise.all([
-    prisma.payout.findMany({ where: { status: "PENDING" }, orderBy: { createdAt: "asc" } }),
-    prisma.payout.findMany({ where: { status: "PAID" }, orderBy: { paidAt: "desc" } }),
+    prisma.payout.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.payout.findMany({
+      where: { status: "PAID" },
+      orderBy: { paidAt: "desc" },
+    }),
   ]);
 
   const allPayouts = [...pendingPayouts, ...paidPayouts];
@@ -26,14 +32,20 @@ export async function GET() {
   const users = await prisma.user.findMany({ where: { id: { in: userIds } } });
   const userById = new Map(users.map((u) => [u.id, u]));
 
-  const contestIds = entries.map((e) => e.contestId).filter((id): id is string => Boolean(id));
-  const contests = await prisma.contest.findMany({ where: { id: { in: contestIds } } });
+  const contestIds = entries
+    .map((e) => e.contestId)
+    .filter((id): id is string => Boolean(id));
+  const contests = await prisma.contest.findMany({
+    where: { id: { in: contestIds } },
+  });
   const contestById = new Map(contests.map((c) => [c.id, c]));
 
   function toRow(payout: (typeof allPayouts)[number]) {
     const entry = entryById.get(payout.contestEntryId);
     const user = entry ? userById.get(entry.userId) : undefined;
-    const contest = entry?.contestId ? contestById.get(entry.contestId) : undefined;
+    const contest = entry?.contestId
+      ? contestById.get(entry.contestId)
+      : undefined;
     return {
       payoutId: payout.id,
       contestEntryId: payout.contestEntryId,

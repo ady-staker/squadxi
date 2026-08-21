@@ -22,7 +22,10 @@ export async function POST(request: Request) {
   }
   const password = (body as { password?: unknown } | null)?.password;
   if (typeof password !== "string" || password.length === 0) {
-    return NextResponse.json({ error: "Password is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Password is required." },
+      { status: 400 },
+    );
   }
 
   const ip = getClientIp(request);
@@ -32,17 +35,20 @@ export async function POST(request: Request) {
     create: { ip },
   });
 
-  const lockoutExpired = attempt.lockedUntil && attempt.lockedUntil <= new Date();
+  const lockoutExpired =
+    attempt.lockedUntil && attempt.lockedUntil <= new Date();
   if (lockoutExpired) {
     attempt = await prisma.loginAttempt.update({
       where: { ip },
       data: { failCount: 0, lockedUntil: null },
     });
   } else if (attempt.lockedUntil && attempt.lockedUntil > new Date()) {
-    const minutes = Math.ceil((attempt.lockedUntil.getTime() - Date.now()) / 60000);
+    const minutes = Math.ceil(
+      (attempt.lockedUntil.getTime() - Date.now()) / 60000,
+    );
     return NextResponse.json(
       { error: `Too many failed attempts. Try again in ${minutes} minute(s).` },
-      { status: 429 }
+      { status: 429 },
     );
   }
 
@@ -52,8 +58,11 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("Admin login attempted but ADMIN_PASSWORD is not set", err);
     return NextResponse.json(
-      { error: "Admin login isn't configured yet -- set ADMIN_PASSWORD in .env." },
-      { status: 500 }
+      {
+        error:
+          "Admin login isn't configured yet -- set ADMIN_PASSWORD in .env.",
+      },
+      { status: 500 },
     );
   }
 
@@ -78,10 +87,16 @@ export async function POST(request: Request) {
   try {
     createAdminSession();
   } catch (err) {
-    console.error("Admin login succeeded but ADMIN_SESSION_SECRET is not set", err);
+    console.error(
+      "Admin login succeeded but ADMIN_SESSION_SECRET is not set",
+      err,
+    );
     return NextResponse.json(
-      { error: "Admin login isn't fully configured yet -- set ADMIN_SESSION_SECRET in .env." },
-      { status: 500 }
+      {
+        error:
+          "Admin login isn't fully configured yet -- set ADMIN_SESSION_SECRET in .env.",
+      },
+      { status: 500 },
     );
   }
   return NextResponse.json({ success: true });

@@ -34,21 +34,41 @@ export type SimEvent = {
 };
 
 const OVERS_PER_INNINGS = 20;
-const DISMISSAL_TYPES = ["BOWLED", "CAUGHT", "LBW", "RUN_OUT", "STUMPED"] as const;
+const DISMISSAL_TYPES = [
+  "BOWLED",
+  "CAUGHT",
+  "LBW",
+  "RUN_OUT",
+  "STUMPED",
+] as const;
 
 /** Picks a plausible 11-player batting/bowling XI from a ~15-player squad,
  *  favoring higher-skill players -- unselected squad players simply get no
  *  events (and so score 0), same as a real bench player. No "playing XI" is
  *  persisted; this selection only exists for the duration of simulation. */
 function pickPlayingXI(squad: SimPlayer[]): SimPlayer[] {
-  const wk = squad.filter((p) => p.role === "WK").sort((a, b) => b.battingSkill - a.battingSkill);
-  const bat = squad.filter((p) => p.role === "BAT").sort((a, b) => b.battingSkill - a.battingSkill);
-  const bowl = squad.filter((p) => p.role === "BOWL").sort((a, b) => b.bowlingSkill - a.bowlingSkill);
-  const ar = squad.filter((p) => p.role === "AR").sort(
-    (a, b) => b.battingSkill + b.bowlingSkill - (a.battingSkill + a.bowlingSkill)
-  );
+  const wk = squad
+    .filter((p) => p.role === "WK")
+    .sort((a, b) => b.battingSkill - a.battingSkill);
+  const bat = squad
+    .filter((p) => p.role === "BAT")
+    .sort((a, b) => b.battingSkill - a.battingSkill);
+  const bowl = squad
+    .filter((p) => p.role === "BOWL")
+    .sort((a, b) => b.bowlingSkill - a.bowlingSkill);
+  const ar = squad
+    .filter((p) => p.role === "AR")
+    .sort(
+      (a, b) =>
+        b.battingSkill + b.bowlingSkill - (a.battingSkill + a.bowlingSkill),
+    );
 
-  const xi = [...wk.slice(0, 1), ...bat.slice(0, 5), ...bowl.slice(0, 4), ...ar.slice(0, 3)];
+  const xi = [
+    ...wk.slice(0, 1),
+    ...bat.slice(0, 5),
+    ...bowl.slice(0, 4),
+    ...ar.slice(0, 3),
+  ];
   // Top up to 11 from whatever's left, in case a squad is short a role.
   if (xi.length < 11) {
     const chosen = new Set(xi.map((p) => p.id));
@@ -60,7 +80,11 @@ function pickPlayingXI(squad: SimPlayer[]): SimPlayer[] {
   return xi.slice(0, 11);
 }
 
-function weightedBallOutcome(rng: () => number, batSkill: number, bowlSkill: number) {
+function weightedBallOutcome(
+  rng: () => number,
+  batSkill: number,
+  bowlSkill: number,
+) {
   // Skill delta shifts probability mass between dot/single/boundary/wicket.
   // Positive delta = batter favored; negative = bowler favored. Clamped to
   // keep every outcome possible regardless of skill gap.
@@ -99,7 +123,8 @@ function mulberry32(seed: number) {
 
 function hashSeed(matchId: string): number {
   let h = 0;
-  for (let i = 0; i < matchId.length; i++) h = (Math.imul(31, h) + matchId.charCodeAt(i)) | 0;
+  for (let i = 0; i < matchId.length; i++)
+    h = (Math.imul(31, h) + matchId.charCodeAt(i)) | 0;
   return h;
 }
 
@@ -112,7 +137,7 @@ export function generateMatchEvents(
   team1Id: string,
   team1Squad: SimPlayer[],
   team2Id: string,
-  team2Squad: SimPlayer[]
+  team2Squad: SimPlayer[],
 ): { events: SimEvent[]; winnerTeamId: string } {
   const rng = mulberry32(hashSeed(matchId));
   const team1XI = pickPlayingXI(team1Squad);
@@ -128,10 +153,12 @@ export function generateMatchEvents(
     battingXI: SimPlayer[],
     bowlingTeamId: string,
     bowlingXI: SimPlayer[],
-    target: number | null
+    target: number | null,
   ): number {
     const batters = [...battingXI];
-    const bowlers = bowlingXI.filter((p) => p.role === "BOWL" || p.role === "AR");
+    const bowlers = bowlingXI.filter(
+      (p) => p.role === "BOWL" || p.role === "AR",
+    );
     const usableBowlers = bowlers.length > 0 ? bowlers : bowlingXI;
 
     let strikerIdx = 0;
@@ -146,15 +173,19 @@ export function generateMatchEvents(
 
       // Rotate bowlers roughly evenly, max 4 overs each (T20 rule), skewed
       // toward higher-bowlingSkill bowlers getting more overs.
-      const bowler = usableBowlers
-        .filter((b) => (bowlerOversCount.get(b.id) ?? 0) < 4)
-        .sort((a, b) => {
-          const aCount = bowlerOversCount.get(a.id) ?? 0;
-          const bCount = bowlerOversCount.get(b.id) ?? 0;
-          if (aCount !== bCount) return aCount - bCount;
-          return b.bowlingSkill - a.bowlingSkill;
-        })[0] ?? usableBowlers[over % usableBowlers.length];
-      bowlerOversCount.set(bowler.id, (bowlerOversCount.get(bowler.id) ?? 0) + 1);
+      const bowler =
+        usableBowlers
+          .filter((b) => (bowlerOversCount.get(b.id) ?? 0) < 4)
+          .sort((a, b) => {
+            const aCount = bowlerOversCount.get(a.id) ?? 0;
+            const bCount = bowlerOversCount.get(b.id) ?? 0;
+            if (aCount !== bCount) return aCount - bCount;
+            return b.bowlingSkill - a.bowlingSkill;
+          })[0] ?? usableBowlers[over % usableBowlers.length];
+      bowlerOversCount.set(
+        bowler.id,
+        (bowlerOversCount.get(bowler.id) ?? 0) + 1,
+      );
 
       let ballsBowledThisOver = 0;
       let ballInOver = 0;
@@ -164,7 +195,11 @@ export function generateMatchEvents(
 
         const striker = batters[strikerIdx];
         const nonStriker = batters[nonStrikerIdx];
-        const outcome = weightedBallOutcome(rng, striker.battingSkill, bowler.bowlingSkill);
+        const outcome = weightedBallOutcome(
+          rng,
+          striker.battingSkill,
+          bowler.bowlingSkill,
+        );
 
         // Small chance of a wide/no-ball (extra ball, not counted toward
         // the over, no wicket risk) to keep totals from feeling too clean.
@@ -198,8 +233,12 @@ export function generateMatchEvents(
 
         if (outcome.wicket) {
           wicketsDown++;
-          const dismissalType = DISMISSAL_TYPES[Math.floor(rng() * DISMISSAL_TYPES.length)];
-          const needsFielder = dismissalType === "CAUGHT" || dismissalType === "RUN_OUT" || dismissalType === "STUMPED";
+          const dismissalType =
+            DISMISSAL_TYPES[Math.floor(rng() * DISMISSAL_TYPES.length)];
+          const needsFielder =
+            dismissalType === "CAUGHT" ||
+            dismissalType === "RUN_OUT" ||
+            dismissalType === "STUMPED";
           const fielder = needsFielder
             ? usableBowlers[Math.floor(rng() * usableBowlers.length)]
             : null;
@@ -265,14 +304,21 @@ export function generateMatchEvents(
     return totalRuns;
   }
 
-  firstInningsRuns = simulateInnings(1, team1Id, team1XI, team2Id, team2XI, null);
+  firstInningsRuns = simulateInnings(
+    1,
+    team1Id,
+    team1XI,
+    team2Id,
+    team2XI,
+    null,
+  );
   const secondInningsRuns = simulateInnings(
     2,
     team2Id,
     team2XI,
     team1Id,
     team1XI,
-    firstInningsRuns + 1
+    firstInningsRuns + 1,
   );
 
   const winnerTeamId = secondInningsRuns > firstInningsRuns ? team2Id : team1Id;

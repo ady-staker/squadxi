@@ -13,7 +13,10 @@ type MarkPaidBody = { txNote?: string };
  *  placement), this app collects a winner's wallet lazily, so there's a
  *  real window where a Payout exists but there's genuinely nowhere to have
  *  sent the money yet. */
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } },
+) {
   if (!isAdminAuthenticated()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -26,7 +29,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
   const txNote = (body as MarkPaidBody | null)?.txNote;
   if (txNote !== undefined && typeof txNote !== "string") {
-    return NextResponse.json({ error: "txNote must be a string." }, { status: 400 });
+    return NextResponse.json(
+      { error: "txNote must be a string." },
+      { status: 400 },
+    );
   }
 
   const existing = await prisma.payout.findUnique({ where: { id: params.id } });
@@ -35,8 +41,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
   if (!existing.walletAddress) {
     return NextResponse.json(
-      { error: "This winner hasn't provided a payout wallet yet -- nothing to mark paid to." },
-      { status: 409 }
+      {
+        error:
+          "This winner hasn't provided a payout wallet yet -- nothing to mark paid to.",
+      },
+      { status: 409 },
     );
   }
 
@@ -50,10 +59,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
   });
 
   if (result.count === 0) {
-    return NextResponse.json({ error: "This payout was already marked paid." }, { status: 409 });
+    return NextResponse.json(
+      { error: "This payout was already marked paid." },
+      { status: 409 },
+    );
   }
 
-  const updated = await prisma.payout.findUniqueOrThrow({ where: { id: params.id } });
+  const updated = await prisma.payout.findUniqueOrThrow({
+    where: { id: params.id },
+  });
   return NextResponse.json({
     payoutId: updated.id,
     status: updated.status,

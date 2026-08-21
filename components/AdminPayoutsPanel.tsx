@@ -29,7 +29,15 @@ function ageFromNow(iso: string): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-function MarkPaidForm({ payoutId, disabled, onDone }: { payoutId: string; disabled: boolean; onDone: () => void }) {
+function MarkPaidForm({
+  payoutId,
+  disabled,
+  onDone,
+}: {
+  payoutId: string;
+  disabled: boolean;
+  onDone: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [txNote, setTxNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +93,10 @@ function MarkPaidForm({ payoutId, disabled, onDone }: { payoutId: string; disabl
         >
           {submitting ? "Saving…" : "Confirm"}
         </button>
-        <button onClick={() => setOpen(false)} className="text-xs text-muted hover:text-ink">
+        <button
+          onClick={() => setOpen(false)}
+          className="text-xs text-muted hover:text-ink"
+        >
           Cancel
         </button>
       </div>
@@ -120,7 +131,9 @@ export function AdminPayoutsPanel() {
   return (
     <div className="space-y-8">
       <section>
-        <h3 className="mb-3 text-sm font-semibold text-ink">Pending payouts ({data.pending.length})</h3>
+        <h3 className="mb-3 text-sm font-semibold text-ink">
+          Pending payouts ({data.pending.length})
+        </h3>
         {data.pending.length === 0 ? (
           <p className="text-sm text-muted">Nothing owed right now.</p>
         ) : (
@@ -143,16 +156,26 @@ export function AdminPayoutsPanel() {
                     <td className="px-3 py-2 text-muted">
                       {p.contestName ?? "—"} {p.rank ? `(#${p.rank})` : ""}
                     </td>
-                    <td className="px-3 py-2 font-semibold text-win">${(p.amountOwedCents / 100).toFixed(2)}</td>
+                    <td className="px-3 py-2 font-semibold text-win">
+                      ${(p.amountOwedCents / 100).toFixed(2)}
+                    </td>
                     <td
                       className="max-w-[200px] truncate px-3 py-2 font-mono text-xs text-ink/80"
                       title={p.walletAddress ?? undefined}
                     >
-                      {p.walletAddress ?? <span className="italic text-muted">not provided</span>}
+                      {p.walletAddress ?? (
+                        <span className="italic text-muted">not provided</span>
+                      )}
                     </td>
-                    <td className="px-3 py-2 text-muted">{ageFromNow(p.createdAt)}</td>
+                    <td className="px-3 py-2 text-muted">
+                      {ageFromNow(p.createdAt)}
+                    </td>
                     <td className="px-3 py-2 text-right">
-                      <MarkPaidForm payoutId={p.payoutId} disabled={!p.walletAddress} onDone={load} />
+                      <MarkPaidForm
+                        payoutId={p.payoutId}
+                        disabled={!p.walletAddress}
+                        onDone={load}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -163,7 +186,9 @@ export function AdminPayoutsPanel() {
       </section>
 
       <section>
-        <h3 className="mb-3 text-sm font-semibold text-ink">Paid history ({data.paid.length})</h3>
+        <h3 className="mb-3 text-sm font-semibold text-ink">
+          Paid history ({data.paid.length})
+        </h3>
         {data.paid.length === 0 ? (
           <p className="text-sm text-muted">No payouts recorded as paid yet.</p>
         ) : (
@@ -182,7 +207,9 @@ export function AdminPayoutsPanel() {
                 {data.paid.map((p) => (
                   <tr key={p.payoutId} className="border-t border-border">
                     <td className="px-3 py-2 text-ink">{p.displayName}</td>
-                    <td className="px-3 py-2 text-ink/80">${(p.amountOwedCents / 100).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-ink/80">
+                      ${(p.amountOwedCents / 100).toFixed(2)}
+                    </td>
                     <td
                       className="max-w-[200px] truncate px-3 py-2 font-mono text-xs text-ink/80"
                       title={p.walletAddress ?? undefined}

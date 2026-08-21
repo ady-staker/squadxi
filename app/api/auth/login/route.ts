@@ -68,9 +68,15 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const { email, password } = (body ?? {}) as { email?: unknown; password?: unknown };
+  const { email, password } = (body ?? {}) as {
+    email?: unknown;
+    password?: unknown;
+  };
   if (typeof email !== "string" || typeof password !== "string") {
-    return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Email and password are required." },
+      { status: 400 },
+    );
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -81,20 +87,29 @@ export async function POST(request: Request) {
   const lockedMinutes = emailLockedMinutes ?? ipLockedMinutes;
   if (lockedMinutes !== null) {
     return NextResponse.json(
-      { error: `Too many failed attempts. Try again in ${lockedMinutes} minute(s).` },
-      { status: 429 }
+      {
+        error: `Too many failed attempts. Try again in ${lockedMinutes} minute(s).`,
+      },
+      { status: 429 },
     );
   }
 
-  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-  const isValid = user ? await verifyPassword(password, user.passwordHash) : false;
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+  const isValid = user
+    ? await verifyPassword(password, user.passwordHash)
+    : false;
 
   if (!isValid) {
     await recordFailure(normalizedEmail);
     await recordFailure(ipKey);
     // Generic message regardless of whether the email exists -- avoids
     // leaking account existence via a different error string.
-    return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Invalid email or password." },
+      { status: 401 },
+    );
   }
 
   await recordSuccess(normalizedEmail);

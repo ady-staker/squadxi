@@ -14,7 +14,10 @@ export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+export async function verifyPassword(
+  password: string,
+  hash: string,
+): Promise<boolean> {
   return bcrypt.compare(password, hash);
 }
 
@@ -50,7 +53,9 @@ export async function createUserSession(userId: string): Promise<void> {
 export async function destroyUserSession(): Promise<void> {
   const token = cookies().get(COOKIE_NAME)?.value;
   if (token) {
-    await prisma.session.deleteMany({ where: { tokenHash: sha256(token) } }).catch(() => {});
+    await prisma.session
+      .deleteMany({ where: { tokenHash: sha256(token) } })
+      .catch(() => {});
   }
   cookies().delete(COOKIE_NAME);
 }
@@ -63,7 +68,9 @@ export async function getCurrentUser(): Promise<User | null> {
   const token = cookies().get(COOKIE_NAME)?.value;
   if (!token) return null;
 
-  const session = await prisma.session.findUnique({ where: { tokenHash: sha256(token) } });
+  const session = await prisma.session.findUnique({
+    where: { tokenHash: sha256(token) },
+  });
   if (!session || session.expiresAt <= new Date()) return null;
 
   return prisma.user.findUnique({ where: { id: session.userId } });

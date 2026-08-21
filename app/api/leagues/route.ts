@@ -19,7 +19,10 @@ function generateInviteCode(): string {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
+    return NextResponse.json(
+      { error: "You must be signed in." },
+      { status: 401 },
+    );
   }
 
   let body: unknown;
@@ -36,18 +39,32 @@ export async function POST(request: Request) {
   };
 
   if (typeof matchId !== "string" || matchId.length === 0) {
-    return NextResponse.json({ error: "A match is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A match is required." },
+      { status: 400 },
+    );
   }
   if (typeof name !== "string" || name.trim().length === 0) {
-    return NextResponse.json({ error: "A league name is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A league name is required." },
+      { status: 400 },
+    );
   }
   const fee = entryFeeCents === undefined ? 0 : entryFeeCents;
   if (typeof fee !== "number" || !Number.isInteger(fee) || fee < 0) {
     return NextResponse.json({ error: "Invalid entry fee." }, { status: 400 });
   }
   const max = maxMembers === undefined ? 20 : maxMembers;
-  if (typeof max !== "number" || !Number.isInteger(max) || max < 2 || max > 500) {
-    return NextResponse.json({ error: "Max members must be between 2 and 500." }, { status: 400 });
+  if (
+    typeof max !== "number" ||
+    !Number.isInteger(max) ||
+    max < 2 ||
+    max > 500
+  ) {
+    return NextResponse.json(
+      { error: "Max members must be between 2 and 500." },
+      { status: 400 },
+    );
   }
 
   const match = await prisma.match.findUnique({ where: { id: matchId } });
@@ -56,8 +73,10 @@ export async function POST(request: Request) {
   }
   if (match.status !== "UPCOMING") {
     return NextResponse.json(
-      { error: "Leagues can only be created for matches that haven't started." },
-      { status: 409 }
+      {
+        error: "Leagues can only be created for matches that haven't started.",
+      },
+      { status: 409 },
     );
   }
 

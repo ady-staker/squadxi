@@ -33,31 +33,46 @@ import { applyContestEntryStatus } from "@/lib/contest-fulfillment";
  * This finding should also be carried back to dental-site's own refund
  * route, which still has the old, now-known-incorrect assumption baked in.
  */
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } },
+) {
   if (!isAdminAuthenticated()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const entry = await prisma.contestEntry.findUnique({ where: { id: params.id } });
+  const entry = await prisma.contestEntry.findUnique({
+    where: { id: params.id },
+  });
   if (!entry) {
-    return NextResponse.json({ error: "Contest entry not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Contest entry not found." },
+      { status: 404 },
+    );
   }
   if (!entry.coinvoyageOrderId) {
     return NextResponse.json(
-      { error: "This entry has no CoinVoyage order (free entry) -- nothing to refund." },
-      { status: 409 }
+      {
+        error:
+          "This entry has no CoinVoyage order (free entry) -- nothing to refund.",
+      },
+      { status: 409 },
     );
   }
   if (entry.paymentStatus === "REFUNDED") {
-    return NextResponse.json({ paymentStatus: "REFUNDED", alreadyRefunded: true });
+    return NextResponse.json({
+      paymentStatus: "REFUNDED",
+      alreadyRefunded: true,
+    });
   }
   if (entry.paymentStatus !== "COMPLETED") {
     return NextResponse.json(
       {
-        error: `This entry's payment is "${entry.paymentStatus}", not COMPLETED -- there's ` +
+        error:
+          `This entry's payment is "${entry.paymentStatus}", not COMPLETED -- there's ` +
           "no settled payment to refund yet.",
       },
-      { status: 409 }
+      { status: 409 },
     );
   }
 
@@ -66,30 +81,42 @@ export async function POST(request: Request, { params }: { params: { id: string 
     ({ client: apiClient, apiSecret } = await coinvoyageCredentials());
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "CoinVoyage is not configured." },
-      { status: 500 }
+      {
+        error:
+          err instanceof Error ? err.message : "CoinVoyage is not configured.",
+      },
+      { status: 500 },
     );
   }
 
-  const { data: order, error: orderError } = await apiClient.getOrder(entry.coinvoyageOrderId);
+  const { data: order, error: orderError } = await apiClient.getOrder(
+    entry.coinvoyageOrderId,
+  );
   if (orderError || !order) {
     console.error(
       `getOrder failed before refund for contestEntryId=${entry.id} coinvoyageOrderId=${entry.coinvoyageOrderId}`,
-      orderError
+      orderError,
     );
     return NextResponse.json(
-      { error: orderError?.message ?? "Failed to look up this order with CoinVoyage before refunding it." },
-      { status: 502 }
+      {
+        error:
+          orderError?.message ??
+          "Failed to look up this order with CoinVoyage before refunding it.",
+      },
+      { status: 502 },
     );
   }
   if (!order.fulfillment?.asset) {
     console.error(
       `Order ${entry.coinvoyageOrderId} has no fulfillment.asset -- can't determine the settlement ` +
-        `currency required for a refund (contestEntryId=${entry.id}).`
+        `currency required for a refund (contestEntryId=${entry.id}).`,
     );
     return NextResponse.json(
-      { error: "Couldn't determine this order's settlement currency -- refund needs manual review." },
-      { status: 502 }
+      {
+        error:
+          "Couldn't determine this order's settlement currency -- refund needs manual review.",
+      },
+      { status: 502 },
     );
   }
 
@@ -98,28 +125,34 @@ export async function POST(request: Request, { params }: { params: { id: string 
       entry.coinvoyageOrderId,
       {
         amount: (entry.entryFeeCents / 100).toFixed(2),
-        currency: { chain_id: order.fulfillment.asset.chain_id, address: order.fulfillment.asset.address },
+        currency: {
+          chain_id: order.fulfillment.asset.chain_id,
+          address: order.fulfillment.asset.address,
+        },
       },
-      apiSecret
+      apiSecret,
     );
     if (error || !data) {
       console.error(
         `createRefundOrder returned an error for contestEntryId=${entry.id} coinvoyageOrderId=${entry.coinvoyageOrderId}`,
-        error
+        error,
       );
       return NextResponse.json(
-        { error: error?.message ?? "Failed to create the refund with CoinVoyage." },
-        { status: 502 }
+        {
+          error:
+            error?.message ?? "Failed to create the refund with CoinVoyage.",
+        },
+        { status: 502 },
       );
     }
   } catch (err) {
     console.error(
       `CoinVoyage createRefundOrder threw for contestEntryId=${entry.id} coinvoyageOrderId=${entry.coinvoyageOrderId}`,
-      err
+      err,
     );
     return NextResponse.json(
       { error: "Failed to reach CoinVoyage to process the refund." },
-      { status: 502 }
+      { status: 502 },
     );
   }
 
@@ -129,7 +162,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // COMPLETED -> REFUNDED transition also releases the entry's claimed
   // contest slot via the same exactly-once guard every other status change
   // uses (see lib/contest-fulfillment.ts).
-  const finalStatus = await applyContestEntryStatus(entry.id, "REFUNDED", new Date());
+  const finalStatus = await applyContestEntryStatus(
+    entry.id,
+    "REFUNDED",
+    new Date(),
+  );
 
   return NextResponse.json({ paymentStatus: finalStatus });
 }

@@ -45,7 +45,7 @@ export function isFailureTerminalStatus(status: string): boolean {
 export function logUnrecognizedStatus(status: string, context: string): void {
   console.error(
     `CoinVoyage returned unrecognized status "${status}" ${context} -- ` +
-      "ORDER_STATUSES in lib/order-status.ts may need updating."
+      "ORDER_STATUSES in lib/order-status.ts may need updating.",
   );
 }
 

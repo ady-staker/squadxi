@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  _request: Request,
+  { params }: { params: { id: string } },
+) {
   const match = await prisma.match.findUnique({ where: { id: params.id } });
   if (!match) {
     return NextResponse.json({ error: "Match not found." }, { status: 404 });
@@ -23,8 +26,22 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       venue: match.venue,
       format: match.format,
       scheduledAt: match.scheduledAt,
-      team1: team1 ? { id: team1.id, name: team1.name, shortName: team1.shortName, logo: team1.logo } : null,
-      team2: team2 ? { id: team2.id, name: team2.name, shortName: team2.shortName, logo: team2.logo } : null,
+      team1: team1
+        ? {
+            id: team1.id,
+            name: team1.name,
+            shortName: team1.shortName,
+            logo: team1.logo,
+          }
+        : null,
+      team2: team2
+        ? {
+            id: team2.id,
+            name: team2.name,
+            shortName: team2.shortName,
+            logo: team2.logo,
+          }
+        : null,
     },
     players: players.map((p) => ({
       id: p.id,
