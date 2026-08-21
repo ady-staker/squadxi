@@ -4,6 +4,7 @@ import { AdminOverviewPanel } from "@/components/AdminOverviewPanel";
 import { AdminPayoutsPanel } from "@/components/AdminPayoutsPanel";
 import { AdminRefundsPanel } from "@/components/AdminRefundsPanel";
 import { AdminMatchesPanel } from "@/components/AdminMatchesPanel";
+import { AdminRoleBonusesPanel } from "@/components/AdminRoleBonusesPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,19 @@ export default function AdminPage() {
           to run). Refunds are reviewed and triggered by hand, not automatic.
         </p>
         <AdminRefundsPanel />
+      </div>
+
+      <div>
+        <h2 className="mb-4 text-xl font-semibold text-ink">
+          Robinhood Chain Role Bonuses
+        </h2>
+        <p className="mb-4 text-sm text-muted">
+          Separate from CoinVoyage entirely -- a contest's role bonuses (best
+          WK/BAT/BOWL/AR) are declared automatically at finalization and claimed
+          by the winner via a smart contract on Robinhood Chain testnet, not
+          paid from this queue.
+        </p>
+        <AdminRoleBonusesPanel />
       </div>
     </div>
   );

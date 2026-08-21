@@ -36,11 +36,19 @@ export async function GET() {
   });
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
+  const roleBonusClaims = await prisma.roleBonusClaim.findMany({
+    where: { contestEntryId: { in: entries.map((e) => e.id) } },
+  });
+  const roleBonusByEntryId = new Map(
+    roleBonusClaims.map((c) => [c.contestEntryId, c]),
+  );
+
   return NextResponse.json({
     entries: entries.map((e) => {
       const contest = e.contestId ? contestById.get(e.contestId) : undefined;
       const league = e.leagueId ? leagueById.get(e.leagueId) : undefined;
       const match = matchById.get(e.fantasyTeam.matchId);
+      const roleBonus = roleBonusByEntryId.get(e.id);
       return {
         id: e.id,
         matchId: e.fantasyTeam.matchId,
@@ -52,6 +60,13 @@ export async function GET() {
         paymentStatus: e.paymentStatus,
         rank: e.rank,
         prizeCents: e.prizeCents,
+        roleBonus: roleBonus
+          ? {
+              claimId: roleBonus.claimId,
+              role: roleBonus.role,
+              status: roleBonus.status,
+            }
+          : null,
       };
     }),
   });
