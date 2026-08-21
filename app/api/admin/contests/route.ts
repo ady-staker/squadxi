@@ -24,6 +24,7 @@ export async function POST(request: Request) {
     rakeBps,
     minEntriesToRun,
     roleBonusBps,
+    payWithTestnetEth,
   } = (body ?? {}) as {
     matchId?: unknown;
     name?: unknown;
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
     rakeBps?: unknown;
     minEntriesToRun?: unknown;
     roleBonusBps?: unknown;
+    payWithTestnetEth?: unknown;
   };
 
   if (typeof matchId !== "string" || matchId.length === 0) {
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
     roleBonusBps <= 10000
       ? roleBonusBps
       : 0;
+  const finalPayWithTestnetEth = payWithTestnetEth === true;
 
   const prizePoolCents = Math.floor(
     entryFeeCents * maxEntries * (1 - finalRakeBps / 10000),
@@ -115,6 +118,7 @@ export async function POST(request: Request) {
       rakeBps: finalRakeBps,
       minEntriesToRun: finalMinEntries,
       roleBonusBps: finalRoleBonusBps,
+      payWithTestnetEth: finalPayWithTestnetEth,
     },
   });
 

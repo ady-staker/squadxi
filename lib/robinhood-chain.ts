@@ -122,6 +122,33 @@ export function operatorAddressFor(privateKey: Hex): Address {
   return privateKeyToAccount(privateKey).address;
 }
 
+/** Same cents-per-testnet-ETH rate used for role-bonus payouts (point 5 of
+ *  the plan) -- reused here so an entry fee and a role bonus derived from
+ *  the same dollar figure convert to the same wei amount. */
+export function centsToTestnetWei(cents: number, centsPerEth: number): bigint {
+  return (BigInt(cents) * BigInt(10) ** BigInt(18)) / BigInt(centsPerEth);
+}
+
+/** Verifies a plain ETH transfer (contest entry fees paid in testnet ETH,
+ *  not a contract call) -- checks the real transaction's to/value and the
+ *  receipt's success status, never trusting a client-reported amount. */
+export async function verifyTestnetTransfer(
+  txHash: Hex,
+  expectedTo: Address,
+  expectedAmountWei: bigint,
+): Promise<boolean> {
+  const config = await resolveRobinhoodConfig();
+  const client = await publicClientFor(config);
+
+  const [tx, receipt] = await Promise.all([
+    client.getTransaction({ hash: txHash }),
+    client.getTransactionReceipt({ hash: txHash }),
+  ]);
+  if (receipt.status !== "success") return false;
+  if (tx.to?.toLowerCase() !== expectedTo.toLowerCase()) return false;
+  return tx.value === expectedAmountWei;
+}
+
 const BONUS_CLAIMED_EVENT = {
   type: "event",
   name: "BonusClaimed",

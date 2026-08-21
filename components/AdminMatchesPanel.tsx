@@ -24,6 +24,7 @@ function CreateContestForm({
   const [entryFee, setEntryFee] = useState("5.00");
   const [maxEntries, setMaxEntries] = useState("10");
   const [roleBonusPct, setRoleBonusPct] = useState("0");
+  const [payWithTestnetEth, setPayWithTestnetEth] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +60,7 @@ function CreateContestForm({
           entryFeeCents,
           maxEntries: maxEntriesNum,
           roleBonusBps,
+          payWithTestnetEth,
         }),
       });
       const data = await res.json();
@@ -113,6 +115,17 @@ function CreateContestForm({
           title="% of the prize pool carved out for Robinhood Chain role bonuses"
           className="w-14 rounded-lg border border-border bg-paper px-2 py-1 text-xs text-ink"
         />
+        <label
+          title="Entry fee paid in Robinhood Chain testnet ETH instead of via CoinVoyage -- no real money involved"
+          className="flex items-center gap-1 text-xs text-muted"
+        >
+          <input
+            type="checkbox"
+            checked={payWithTestnetEth}
+            onChange={(e) => setPayWithTestnetEth(e.target.checked)}
+          />
+          Testnet pay
+        </label>
         <button
           onClick={submit}
           disabled={submitting}

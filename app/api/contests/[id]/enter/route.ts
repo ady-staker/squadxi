@@ -14,6 +14,10 @@ import {
   isOrderStatus,
   logUnrecognizedStatus,
 } from "@/lib/order-status";
+import {
+  centsToTestnetWei,
+  resolveRobinhoodConfig,
+} from "@/lib/robinhood-chain";
 
 function isUniqueConstraintViolation(err: unknown): boolean {
   return (
@@ -159,6 +163,58 @@ export async function POST(
         contestEntryId: entry.id,
         orderId: null,
         paymentStatus: "COMPLETED",
+      });
+    } catch (err) {
+      await releaseContestSlotStandalone(contestId);
+      if (isUniqueConstraintViolation(err)) {
+        return NextResponse.json(
+          { error: "You've already entered this contest." },
+          { status: 409 },
+        );
+      }
+      throw err;
+    }
+  }
+
+  // Robinhood Chain testnet ETH entry: bypasses CoinVoyage entirely, so the
+  // whole entry -> finalize -> role-bonus-claim loop can be exercised with
+  // no real money. The frontend pays Settings.robinhoodContractAddress
+  // directly (a plain transfer, same address the role-bonus contract itself
+  // lives at -- entry fees just top up the balance claims pay out from) and
+  // reports the txHash to /confirm-testnet-payment for verification.
+  if (contest.payWithTestnetEth) {
+    const config = await resolveRobinhoodConfig();
+    if (!config.contractAddress || !config.centsPerTestnetEth) {
+      await releaseContestSlotStandalone(contestId);
+      return NextResponse.json(
+        { error: "Robinhood Chain isn't configured yet." },
+        { status: 503 },
+      );
+    }
+    try {
+      const entry = await prisma.contestEntry.create({
+        data: {
+          userId: user.id,
+          contestId,
+          fantasyTeamId,
+          entryFeeCents: contest.entryFeeCents,
+          paymentStatus: "AWAITING_PAYMENT",
+          slotClaimed: true,
+          idempotencyKey: idempotencyKey ?? null,
+        },
+      });
+      return NextResponse.json({
+        contestEntryId: entry.id,
+        orderId: null,
+        paymentStatus: "AWAITING_PAYMENT",
+        testnetPayment: {
+          toAddress: config.contractAddress,
+          amountWei: centsToTestnetWei(
+            contest.entryFeeCents,
+            config.centsPerTestnetEth,
+          ).toString(),
+          chainId: config.chainId,
+        },
       });
     } catch (err) {
       await releaseContestSlotStandalone(contestId);

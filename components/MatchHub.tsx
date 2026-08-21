@@ -2,6 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  useAccount,
+  useConnect,
+  useChainId,
+  useSwitchChain,
+  useSendTransaction,
+  useWaitForTransactionReceipt,
+} from "wagmi";
+import { injected } from "wagmi/connectors";
+import { robinhoodChainTestnet } from "@/lib/wagmi-config";
 
 type MatchInfo = {
   id: string;
@@ -20,6 +30,7 @@ type Contest = {
   currentEntries: number;
   prizePoolCents: number;
   status: string;
+  payWithTestnetEth: boolean;
 };
 type FantasyTeam = { id: string; name: string; totalCredits: string };
 
@@ -34,6 +45,121 @@ const TERMINAL_PAYMENT_STATUSES = [
   "FAILED",
 ];
 const STATUS_POLL_MS = 4000;
+
+function TestnetPaymentFlow({
+  contestEntryId,
+  toAddress,
+  amountWei,
+  chainId,
+  onConfirmed,
+}: {
+  contestEntryId: string;
+  toAddress: `0x${string}`;
+  amountWei: string;
+  chainId: number;
+  onConfirmed: () => void;
+}) {
+  const { address, isConnected } = useAccount();
+  const { connect, error: connectError } = useConnect();
+  const connectedChainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const {
+    sendTransaction,
+    data: txHash,
+    isPending,
+    error: sendError,
+  } = useSendTransaction();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({ hash: txHash });
+  const [confirmed, setConfirmed] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isConfirmed || !txHash || confirmed) return;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/contest-entries/${contestEntryId}/confirm-testnet-payment`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ txHash }),
+          },
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to confirm.");
+        setConfirmed(true);
+        onConfirmed();
+      } catch (err) {
+        setConfirmError(
+          err instanceof Error ? err.message : "Failed to confirm payment.",
+        );
+      }
+    })();
+  }, [isConfirmed, txHash, confirmed, contestEntryId, onConfirmed]);
+
+  if (confirmed) {
+    return (
+      <p className="text-sm font-semibold text-accent">
+        Payment confirmed — you're entered!
+      </p>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <div className="flex flex-col items-end gap-1 text-right">
+        <button
+          onClick={() => connect({ connector: injected() })}
+          className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
+        >
+          Connect wallet to pay
+        </button>
+        {connectError && (
+          <p className="text-xs text-loss">No wallet extension found.</p>
+        )}
+      </div>
+    );
+  }
+
+  if (connectedChainId !== robinhoodChainTestnet.id) {
+    return (
+      <button
+        onClick={() => switchChain({ chainId: robinhoodChainTestnet.id })}
+        className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
+      >
+        Switch to Robinhood Chain testnet
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1 text-right">
+      <button
+        onClick={() =>
+          sendTransaction({
+            to: toAddress,
+            value: BigInt(amountWei),
+            chainId,
+          })
+        }
+        disabled={isPending || isConfirming}
+        className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
+      >
+        {isPending
+          ? "Confirm in wallet…"
+          : isConfirming
+            ? "Waiting for confirmation…"
+            : `Pay ${(Number(amountWei) / 1e18).toFixed(4)} testnet ETH`}
+      </button>
+      <p className="text-xs text-muted">
+        Connected as <span className="font-mono">{address}</span>
+      </p>
+      {sendError && <p className="text-xs text-loss">{sendError.message}</p>}
+      {confirmError && <p className="text-xs text-loss">{confirmError}</p>}
+    </div>
+  );
+}
 
 function EnterContestForm({
   contest,
@@ -50,6 +176,11 @@ function EnterContestForm({
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [entryId, setEntryId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [testnetPayment, setTestnetPayment] = useState<{
+    toAddress: `0x${string}`;
+    amountWei: string;
+    chainId: number;
+  } | null>(null);
 
   async function submit() {
     setSubmitting(true);
@@ -65,7 +196,10 @@ function EnterContestForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to enter contest.");
-      if (data.paymentUrl) {
+      if (data.testnetPayment) {
+        setEntryId(data.contestEntryId);
+        setTestnetPayment(data.testnetPayment);
+      } else if (data.paymentUrl) {
         setPaymentUrl(data.paymentUrl);
         setEntryId(data.contestEntryId);
         setPaymentStatus(data.paymentStatus ?? "PENDING");
@@ -102,6 +236,18 @@ function EnterContestForm({
     }, STATUS_POLL_MS);
     return () => clearInterval(interval);
   }, [entryId, paymentStatus, onEntered]);
+
+  if (testnetPayment && entryId) {
+    return (
+      <TestnetPaymentFlow
+        contestEntryId={entryId}
+        toAddress={testnetPayment.toAddress}
+        amountWei={testnetPayment.amountWei}
+        chainId={testnetPayment.chainId}
+        onConfirmed={onEntered}
+      />
+    );
+  }
 
   if (paymentUrl) {
     if (paymentStatus === "COMPLETED") {
@@ -160,7 +306,9 @@ function EnterContestForm({
           ? "…"
           : contest.entryFeeCents === 0
             ? "Join free"
-            : `Enter (${formatUsd(contest.entryFeeCents)})`}
+            : contest.payWithTestnetEth
+              ? `Enter (${formatUsd(contest.entryFeeCents)} in testnet ETH)`
+              : `Enter (${formatUsd(contest.entryFeeCents)})`}
       </button>
       {error && <p className="text-xs text-loss">{error}</p>}
     </div>

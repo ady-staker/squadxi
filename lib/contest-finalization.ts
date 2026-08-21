@@ -1,6 +1,7 @@
 import { keccak256, stringToHex } from "viem";
 import { prisma } from "@/lib/prisma";
 import { applyMultiplier, captaincyFor } from "@/lib/scoring";
+import { centsToTestnetWei } from "@/lib/robinhood-chain";
 
 const PRIZE_SPLIT = [0.5, 0.3, 0.2]; // top 3: 50/30/20% of the prize pool
 
@@ -180,8 +181,7 @@ async function computeRoleBonuses(
   if (winners.size === 0) return 0;
 
   const perRoleCents = Math.floor(roleBonusPoolCents / winners.size);
-  const amountWei =
-    (BigInt(perRoleCents) * BigInt(10) ** BigInt(18)) / BigInt(centsPerEth);
+  const amountWei = centsToTestnetWei(perRoleCents, centsPerEth);
 
   for (const [role, winner] of winners) {
     await prisma.roleBonusClaim.upsert({
