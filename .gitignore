@@ -13,3 +13,5 @@ prisma/dev.db-journal
 
 .vercel
 .env*
+contracts/artifacts
+contracts/cache
