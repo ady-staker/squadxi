@@ -15,7 +15,7 @@ export default defineConfig({
       chainType: "l1",
       url:
         process.env.ROBINHOOD_TESTNET_RPC_URL ??
-        "https://robinhood-testnet.g.alchemy.com/v2/demo",
+        "https://rpc.testnet.chain.robinhood.com",
       chainId: ROBINHOOD_TESTNET_CHAIN_ID,
       accounts: process.env.ROBINHOOD_DEPLOYER_PRIVATE_KEY
         ? [process.env.ROBINHOOD_DEPLOYER_PRIVATE_KEY]

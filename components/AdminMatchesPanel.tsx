@@ -23,18 +23,28 @@ function CreateContestForm({
   const [name, setName] = useState("Head to Head");
   const [entryFee, setEntryFee] = useState("5.00");
   const [maxEntries, setMaxEntries] = useState("10");
+  const [roleBonusPct, setRoleBonusPct] = useState("0");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
     const entryFeeCents = Math.round(parseFloat(entryFee) * 100);
     const maxEntriesNum = parseInt(maxEntries, 10);
+    const roleBonusBps = Math.round(parseFloat(roleBonusPct) * 100);
     if (!Number.isInteger(entryFeeCents) || entryFeeCents <= 0) {
       setError("Entry fee must be a positive dollar amount.");
       return;
     }
     if (!Number.isInteger(maxEntriesNum) || maxEntriesNum < 2) {
       setError("Max entries must be at least 2.");
+      return;
+    }
+    if (
+      !Number.isInteger(roleBonusBps) ||
+      roleBonusBps < 0 ||
+      roleBonusBps > 10000
+    ) {
+      setError("Role bonus % must be between 0 and 100.");
       return;
     }
     setSubmitting(true);
@@ -48,6 +58,7 @@ function CreateContestForm({
           name,
           entryFeeCents,
           maxEntries: maxEntriesNum,
+          roleBonusBps,
         }),
       });
       const data = await res.json();
@@ -93,6 +104,13 @@ function CreateContestForm({
           value={maxEntries}
           onChange={(e) => setMaxEntries(e.target.value)}
           placeholder="Max"
+          className="w-14 rounded-lg border border-border bg-paper px-2 py-1 text-xs text-ink"
+        />
+        <input
+          value={roleBonusPct}
+          onChange={(e) => setRoleBonusPct(e.target.value)}
+          placeholder="RH %"
+          title="% of the prize pool carved out for Robinhood Chain role bonuses"
           className="w-14 rounded-lg border border-border bg-paper px-2 py-1 text-xs text-ink"
         />
         <button

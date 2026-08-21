@@ -16,15 +16,23 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const { matchId, name, entryFeeCents, maxEntries, rakeBps, minEntriesToRun } =
-    (body ?? {}) as {
-      matchId?: unknown;
-      name?: unknown;
-      entryFeeCents?: unknown;
-      maxEntries?: unknown;
-      rakeBps?: unknown;
-      minEntriesToRun?: unknown;
-    };
+  const {
+    matchId,
+    name,
+    entryFeeCents,
+    maxEntries,
+    rakeBps,
+    minEntriesToRun,
+    roleBonusBps,
+  } = (body ?? {}) as {
+    matchId?: unknown;
+    name?: unknown;
+    entryFeeCents?: unknown;
+    maxEntries?: unknown;
+    rakeBps?: unknown;
+    minEntriesToRun?: unknown;
+    roleBonusBps?: unknown;
+  };
 
   if (typeof matchId !== "string" || matchId.length === 0) {
     return NextResponse.json(
@@ -85,6 +93,13 @@ export async function POST(request: Request) {
     minEntriesToRun >= 2
       ? minEntriesToRun
       : DEFAULT_MIN_ENTRIES;
+  const finalRoleBonusBps =
+    typeof roleBonusBps === "number" &&
+    Number.isInteger(roleBonusBps) &&
+    roleBonusBps >= 0 &&
+    roleBonusBps <= 10000
+      ? roleBonusBps
+      : 0;
 
   const prizePoolCents = Math.floor(
     entryFeeCents * maxEntries * (1 - finalRakeBps / 10000),
@@ -99,6 +114,7 @@ export async function POST(request: Request) {
       prizePoolCents,
       rakeBps: finalRakeBps,
       minEntriesToRun: finalMinEntries,
+      roleBonusBps: finalRoleBonusBps,
     },
   });
 
