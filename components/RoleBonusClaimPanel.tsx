@@ -80,6 +80,14 @@ export function RoleBonusClaimPanel({ claimId }: { claimId: string }) {
 
   function submitClaim() {
     if (!voucher) return;
+    // stale voucher guard -- account may have switched since requesting it
+    if (address?.toLowerCase() !== voucher.winner.toLowerCase()) {
+      setVoucher(null);
+      setVoucherError(
+        "Your connected wallet changed -- please request a new voucher.",
+      );
+      return;
+    }
     writeContract({
       address: voucher.contractAddress,
       abi: CLAIM_ABI,
