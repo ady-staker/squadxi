@@ -12,6 +12,95 @@ type MatchRow = {
   team2: string;
 };
 
+function CreateContestForm({ matchId, onDone }: { matchId: string; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("Head to Head");
+  const [entryFee, setEntryFee] = useState("5.00");
+  const [maxEntries, setMaxEntries] = useState("10");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    const entryFeeCents = Math.round(parseFloat(entryFee) * 100);
+    const maxEntriesNum = parseInt(maxEntries, 10);
+    if (!Number.isInteger(entryFeeCents) || entryFeeCents <= 0) {
+      setError("Entry fee must be a positive dollar amount.");
+      return;
+    }
+    if (!Number.isInteger(maxEntriesNum) || maxEntriesNum < 2) {
+      setError("Max entries must be at least 2.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/contests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId, name, entryFeeCents, maxEntries: maxEntriesNum }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to create contest.");
+      setOpen(false);
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create contest.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-accent hover:text-ink"
+      >
+        + Contest
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex items-center gap-1.5">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Name"
+          className="w-28 rounded-lg border border-border bg-paper px-2 py-1 text-xs text-ink"
+        />
+        <input
+          value={entryFee}
+          onChange={(e) => setEntryFee(e.target.value)}
+          placeholder="Fee $"
+          className="w-16 rounded-lg border border-border bg-paper px-2 py-1 text-xs text-ink"
+        />
+        <input
+          value={maxEntries}
+          onChange={(e) => setMaxEntries(e.target.value)}
+          placeholder="Max"
+          className="w-14 rounded-lg border border-border bg-paper px-2 py-1 text-xs text-ink"
+        />
+        <button
+          onClick={submit}
+          disabled={submitting}
+          className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
+        >
+          {submitting ? "…" : "Create"}
+        </button>
+        <button
+          onClick={() => setOpen(false)}
+          className="rounded-full border border-border px-2 py-1.5 text-xs text-muted transition hover:text-ink"
+        >
+          ×
+        </button>
+      </div>
+      {error && <p className="text-xs text-loss">{error}</p>}
+    </div>
+  );
+}
+
 function AdvanceButton({ matchId, onDone }: { matchId: string; onDone: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,11 +205,16 @@ export function AdminMatchesPanel() {
                 {m.currentEventSequence}/{m.totalEvents || "?"}
               </td>
               <td className="px-3 py-2 text-right">
-                {m.status === "COMPLETED" ? (
-                  <span className="text-xs text-muted">Done</span>
-                ) : (
-                  <AdvanceButton matchId={m.id} onDone={load} />
-                )}
+                <div className="flex flex-col items-end gap-2">
+                  {m.status === "UPCOMING" && (
+                    <CreateContestForm matchId={m.id} onDone={load} />
+                  )}
+                  {m.status === "COMPLETED" ? (
+                    <span className="text-xs text-muted">Done</span>
+                  ) : (
+                    <AdvanceButton matchId={m.id} onDone={load} />
+                  )}
+                </div>
               </td>
             </tr>
           ))}
