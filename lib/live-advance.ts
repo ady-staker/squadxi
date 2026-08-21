@@ -4,11 +4,7 @@ import {
   aggregatePerformances,
   type RawPerformance,
 } from "@/lib/aggregate-performance";
-import {
-  totalMatchPoints,
-  applyMultiplier,
-  type CaptaincyRole,
-} from "@/lib/scoring";
+import { totalMatchPoints, applyMultiplier, captaincyFor } from "@/lib/scoring";
 import {
   lockEntriesForMatch,
   finalizeMatchContests,
@@ -60,16 +56,6 @@ async function ensureEventsGenerated(matchId: string): Promise<void> {
     where: { id: matchId },
     data: { totalEvents: events.length, winnerTeamId },
   });
-}
-
-function captaincyFor(
-  playerId: string,
-  captainId: string,
-  viceCaptainId: string,
-): CaptaincyRole {
-  if (playerId === captainId) return "CAPTAIN";
-  if (playerId === viceCaptainId) return "VICE_CAPTAIN";
-  return "NONE";
 }
 
 export type AdvanceResult = {

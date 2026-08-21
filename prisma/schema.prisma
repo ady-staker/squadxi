@@ -153,6 +153,7 @@ model Contest {
   prizePoolCents  Int
   rakeBps         Int      @default(1500) // 15%
   minEntriesToRun Int      @default(3)
+  roleBonusBps    Int      @default(0) // bps of prizePoolCents carved out for the 4 Robinhood Chain role bonuses; 0 = feature off, zero behavior change
   status          String   @default("OPEN") // OPEN | LOCKED | LIVE | COMPLETED | FINALIZED | VOIDED
   createdAt       DateTime @default(now())
 }
@@ -232,15 +233,45 @@ model Payout {
   paidAt          DateTime?
 }
 
+// --- Robinhood Chain role-bonus payouts (separate from CoinVoyage, opt-in
+// per contest via Contest.roleBonusBps) -----------------------------------
+
+// One row per role bonus a contest actually awards -- the off-chain source
+// of truth for "this bonus exists," mirroring how Payout is already the
+// off-chain source of truth for CoinVoyage payouts. walletAddress is
+// nullable for the same reason as Payout.walletAddress above: collected
+// lazily at claim time, never known up front.
+model RoleBonusClaim {
+  id             String    @id @default(cuid())
+  contestId      String
+  contestEntryId String
+  role           String // WK | BAT | BOWL | AR
+  playerId       String // winning contribution's player, for display/audit
+  claimId        String    @unique // bytes32 hex, keccak256(contestId, role) -- computed identically on- and off-chain
+  amountWei      String // BigInt-safe as string; Prisma has no native uint256
+  walletAddress  String?
+  status         String    @default("DECLARED") // DECLARED | CLAIMED
+  txHash         String?
+  createdAt      DateTime  @default(now())
+  claimedAt      DateTime?
+
+  @@unique([contestId, role]) // one winner per role per contest
+  @@unique([contestId, contestEntryId]) // one bonus per entry per contest -- no multi-role sweeps
+}
+
 // --- CoinVoyage credentials & admin (identical to sibling apps) -----------
 
 model Settings {
-  id                      Int      @id @default(1)
-  coinVoyageApiKey        String?
-  coinVoyageApiSecret     String?
-  coinVoyageEnv           String?
-  coinVoyageWebhookSecret String?
-  updatedAt               DateTime @updatedAt
+  id                          Int      @id @default(1)
+  coinVoyageApiKey            String?
+  coinVoyageApiSecret         String?
+  coinVoyageEnv               String?
+  coinVoyageWebhookSecret     String?
+  robinhoodRpcUrl             String?
+  robinhoodOperatorPrivateKey String? // signs claim vouchers -- never returned by any API/admin view
+  robinhoodContractAddress    String?
+  robinhoodCentsPerTestnetEth Int? // bookkeeping conversion rate only; no real exchange rate backs testnet ETH
+  updatedAt                   DateTime @updatedAt
 }
 
 // Admin login lockout -- IP-keyed (single shared operator secret, unlike

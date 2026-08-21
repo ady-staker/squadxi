@@ -138,3 +138,13 @@ export function applyMultiplier(
   if (captaincy === "VICE_CAPTAIN") return points * 1.5;
   return points;
 }
+
+export function captaincyFor(
+  playerId: string,
+  captainId: string,
+  viceCaptainId: string,
+): CaptaincyRole {
+  if (playerId === captainId) return "CAPTAIN";
+  if (playerId === viceCaptainId) return "VICE_CAPTAIN";
+  return "NONE";
+}
