@@ -5,6 +5,7 @@ import { AdminPayoutsPanel } from "@/components/AdminPayoutsPanel";
 import { AdminRefundsPanel } from "@/components/AdminRefundsPanel";
 import { AdminMatchesPanel } from "@/components/AdminMatchesPanel";
 import { AdminRoleBonusesPanel } from "@/components/AdminRoleBonusesPanel";
+import { AdminLiveBetsPanel } from "@/components/AdminLiveBetsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,17 @@ export default function AdminPage() {
           paid from this queue.
         </p>
         <AdminRoleBonusesPanel />
+      </div>
+
+      <div>
+        <h2 className="mb-4 text-xl font-semibold text-ink">Live Match Bets</h2>
+        <p className="mb-4 text-sm text-muted">
+          Outcome bets on LIVE matches, separate from fantasy contests. Settled
+          automatically when a match's Advance control reaches COMPLETED --
+          CoinVoyage winners land in the Payout Queue above, testnet-ETH winners
+          claim on-chain from their own account.
+        </p>
+        <AdminLiveBetsPanel />
       </div>
     </div>
   );

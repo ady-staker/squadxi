@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { summarizeInnings } from "@/lib/live-advance";
+import { computeMatchOdds } from "@/lib/live-bet-odds";
 
 export async function GET(
   request: Request,
@@ -23,6 +24,18 @@ export async function GET(
     },
   });
   const innings = summarizeInnings(revealedEvents);
+
+  const [team1, team2] = await Promise.all([
+    prisma.team.findUnique({ where: { id: match.team1Id } }),
+    prisma.team.findUnique({ where: { id: match.team2Id } }),
+  ]);
+
+  // Only computed while betting is actually open -- odds aren't meaningful
+  // (or shown) once a match is UPCOMING or COMPLETED.
+  const odds =
+    match.status === "LIVE"
+      ? await computeMatchOdds(match.team1Id, match.team2Id)
+      : null;
 
   const { searchParams } = new URL(request.url);
   const contestId = searchParams.get("contestId");
@@ -67,6 +80,13 @@ export async function GET(
       // lib/live-advance.ts's ensureEventsGenerated() comment on why this
       // is stored ahead of time but must never leak here before then.
       winnerTeamId: match.status === "COMPLETED" ? match.winnerTeamId : null,
+      team1: team1
+        ? { id: team1.id, shortName: team1.shortName, name: team1.name }
+        : null,
+      team2: team2
+        ? { id: team2.id, shortName: team2.shortName, name: team2.name }
+        : null,
+      odds,
     },
     innings,
     leaderboard,

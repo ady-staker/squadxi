@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LiveBetPanel } from "@/components/LiveBetPanel";
 
 type InningsSummary = {
   innings: number;
@@ -15,6 +16,7 @@ type LeaderboardRow = {
   totalPoints: number;
   rank: number;
 };
+type Team = { id: string; shortName: string; name: string };
 type LiveData = {
   match: {
     id: string;
@@ -22,6 +24,9 @@ type LiveData = {
     currentEventSequence: number;
     totalEvents: number;
     winnerTeamId: string | null;
+    team1: Team | null;
+    team2: Team | null;
+    odds: { team1Multiplier: number; team2Multiplier: number } | null;
   };
   innings: InningsSummary[];
   leaderboard: LeaderboardRow[];
@@ -128,6 +133,18 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
           Match complete.
         </p>
       )}
+
+      {data.match.status === "LIVE" &&
+        data.match.team1 &&
+        data.match.team2 &&
+        data.match.odds && (
+          <LiveBetPanel
+            matchId={data.match.id}
+            team1={data.match.team1}
+            team2={data.match.team2}
+            odds={data.match.odds}
+          />
+        )}
 
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">

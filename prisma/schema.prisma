@@ -252,6 +252,10 @@ model LiveBet {
   outcome              String? // WON | LOST | VOID
   payoutCents          Int       @default(0)
   claimId              String?   @unique // testnet-ETH winners only
+  claimAmountWei       String? // BigInt-safe as string, same convention as RoleBonusClaim.amountWei
+  claimWalletAddress   String? // collected lazily at first voucher request, same convention as RoleBonusClaim.walletAddress
+  claimTxHash          String?
+  claimedAt            DateTime?
   createdAt            DateTime  @default(now())
   settledAt            DateTime?
 

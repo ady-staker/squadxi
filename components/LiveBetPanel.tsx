@@ -1,0 +1,367 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  useAccount,
+  useConnect,
+  useChainId,
+  useSwitchChain,
+  useSendTransaction,
+  useWaitForTransactionReceipt,
+} from "wagmi";
+import { injected } from "wagmi/connectors";
+import { robinhoodChainTestnet } from "@/lib/wagmi-config";
+import { MIN_STAKE_CENTS, MAX_STAKE_CENTS } from "@/lib/live-bet-constants";
+
+type Team = { id: string; shortName: string; name: string };
+type Odds = { team1Multiplier: number; team2Multiplier: number };
+
+const TERMINAL_STATUSES = ["COMPLETED", "EXPIRED", "REFUNDED", "FAILED"];
+const STATUS_POLL_MS = 4000;
+
+function formatUsd(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function TestnetBetPaymentFlow({
+  liveBetId,
+  toAddress,
+  amountWei,
+  chainId,
+  onConfirmed,
+}: {
+  liveBetId: string;
+  toAddress: `0x${string}`;
+  amountWei: string;
+  chainId: number;
+  onConfirmed: () => void;
+}) {
+  const { address, isConnected } = useAccount();
+  const { connect, error: connectError } = useConnect();
+  const connectedChainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const {
+    sendTransaction,
+    data: txHash,
+    isPending,
+    error: sendError,
+  } = useSendTransaction();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({ hash: txHash });
+  const [confirmed, setConfirmed] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isConfirmed || !txHash || confirmed) return;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/live-bets/${liveBetId}/confirm-testnet-payment`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ txHash }),
+          },
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to confirm.");
+        setConfirmed(true);
+        onConfirmed();
+      } catch (err) {
+        setConfirmError(
+          err instanceof Error ? err.message : "Failed to confirm payment.",
+        );
+      }
+    })();
+  }, [isConfirmed, txHash, confirmed, liveBetId, onConfirmed]);
+
+  if (confirmed) {
+    return (
+      <p className="text-sm font-semibold text-accent">
+        Payment confirmed — your bet is placed!
+      </p>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <div className="flex flex-col items-start gap-1">
+        <button
+          onClick={() => connect({ connector: injected() })}
+          className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
+        >
+          Connect wallet to pay
+        </button>
+        {connectError && (
+          <p className="text-xs text-loss">No wallet extension found.</p>
+        )}
+      </div>
+    );
+  }
+
+  if (connectedChainId !== robinhoodChainTestnet.id) {
+    return (
+      <button
+        onClick={() => switchChain({ chainId: robinhoodChainTestnet.id })}
+        className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
+      >
+        Switch to Robinhood Chain testnet
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <button
+        onClick={() =>
+          sendTransaction({ to: toAddress, value: BigInt(amountWei), chainId })
+        }
+        disabled={isPending || isConfirming}
+        className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
+      >
+        {isPending
+          ? "Confirm in wallet…"
+          : isConfirming
+            ? "Waiting for confirmation…"
+            : `Pay ${(Number(amountWei) / 1e18).toFixed(4)} testnet ETH`}
+      </button>
+      <p className="text-xs text-muted">
+        Connected as <span className="font-mono">{address}</span>
+      </p>
+      {sendError && <p className="text-xs text-loss">{sendError.message}</p>}
+      {confirmError && <p className="text-xs text-loss">{confirmError}</p>}
+    </div>
+  );
+}
+
+export function LiveBetPanel({
+  matchId,
+  team1,
+  team2,
+  odds,
+}: {
+  matchId: string;
+  team1: Team;
+  team2: Team;
+  odds: Odds;
+}) {
+  const [sideTeamId, setSideTeamId] = useState(team1.id);
+  const [stakeDollars, setStakeDollars] = useState(
+    (MIN_STAKE_CENTS / 100).toFixed(2),
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
+
+  const [liveBetId, setLiveBetId] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [testnetPayment, setTestnetPayment] = useState<{
+    toAddress: `0x${string}`;
+    amountWei: string;
+    chainId: number;
+  } | null>(null);
+  const [placed, setPlaced] = useState(false);
+
+  async function submit(paymentMethod: "coinvoyage" | "testnet_eth") {
+    const stakeCents = Math.round(Number(stakeDollars) * 100);
+    if (
+      !Number.isInteger(stakeCents) ||
+      stakeCents < MIN_STAKE_CENTS ||
+      stakeCents > MAX_STAKE_CENTS
+    ) {
+      setError(
+        `Stake must be between ${formatUsd(MIN_STAKE_CENTS)} and ${formatUsd(MAX_STAKE_CENTS)}.`,
+      );
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/live-bets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matchId,
+          sideTeamId,
+          stakeCents,
+          idempotencyKey: crypto.randomUUID(),
+          paymentMethod,
+        }),
+      });
+      if (res.status === 401) {
+        setNeedsSignIn(true);
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to place bet.");
+      if (data.testnetPayment) {
+        setLiveBetId(data.liveBetId);
+        setTestnetPayment(data.testnetPayment);
+      } else if (data.paymentUrl) {
+        setLiveBetId(data.liveBetId);
+        setPaymentUrl(data.paymentUrl);
+        setStatus(data.status ?? "PENDING");
+      } else {
+        setPlaced(true);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to place bet.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Same webhook-fallback poll as MatchHub's EnterContestForm.
+  useEffect(() => {
+    if (!liveBetId || !status || TERMINAL_STATUSES.includes(status)) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/live-bets/${liveBetId}/status`);
+        const data = await res.json();
+        if (data.status) setStatus(data.status);
+      } catch {
+        // Transient poll failure -- next interval tick tries again.
+      }
+    }, STATUS_POLL_MS);
+    return () => clearInterval(interval);
+  }, [liveBetId, status]);
+
+  if (needsSignIn) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface p-5">
+        <p className="mb-3 text-sm text-muted">Sign in to bet on this match.</p>
+        <Link
+          href={`/login?next=${encodeURIComponent(`/matches/${matchId}/live`)}`}
+          className="inline-block rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-paper transition hover:bg-accent-dark"
+        >
+          Sign in
+        </Link>
+      </div>
+    );
+  }
+
+  if (testnetPayment && liveBetId) {
+    return (
+      <div className="rounded-2xl border border-gold/30 bg-gold/10 p-5">
+        <TestnetBetPaymentFlow
+          liveBetId={liveBetId}
+          toAddress={testnetPayment.toAddress}
+          amountWei={testnetPayment.amountWei}
+          chainId={testnetPayment.chainId}
+          onConfirmed={() => setPlaced(true)}
+        />
+      </div>
+    );
+  }
+
+  if (paymentUrl) {
+    if (placed || status === "COMPLETED") {
+      return (
+        <p className="rounded-2xl border border-accent/30 bg-accent/10 p-5 text-sm font-semibold text-accent">
+          Payment confirmed — your bet is placed!
+        </p>
+      );
+    }
+    if (status && TERMINAL_STATUSES.includes(status)) {
+      return (
+        <p className="rounded-2xl border border-loss/30 bg-loss/10 p-5 text-sm text-loss">
+          Payment {status.toLowerCase()}. Please try placing your bet again.
+        </p>
+      );
+    }
+    return (
+      <div className="flex flex-col items-start gap-1 rounded-2xl border border-gold/30 bg-gold/10 p-5">
+        <a
+          href={paymentUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
+        >
+          Complete payment ↗
+        </a>
+        <p className="text-xs text-muted">
+          Opens CoinVoyage's payment page in a new tab. This updates
+          automatically once paid.
+        </p>
+      </div>
+    );
+  }
+
+  if (placed) {
+    return (
+      <p className="rounded-2xl border border-accent/30 bg-accent/10 p-5 text-sm font-semibold text-accent">
+        Your bet is placed!
+      </p>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-5">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+        Bet on this match
+      </h3>
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setSideTeamId(team1.id)}
+          className={`rounded-xl border px-3 py-3 text-left transition ${
+            sideTeamId === team1.id
+              ? "border-accent bg-accent/10"
+              : "border-border bg-paper hover:border-accent/40"
+          }`}
+        >
+          <p className="text-sm font-semibold text-ink">{team1.shortName}</p>
+          <p className="font-mono text-xs text-gold">
+            {odds.team1Multiplier.toFixed(2)}x
+          </p>
+        </button>
+        <button
+          onClick={() => setSideTeamId(team2.id)}
+          className={`rounded-xl border px-3 py-3 text-left transition ${
+            sideTeamId === team2.id
+              ? "border-accent bg-accent/10"
+              : "border-border bg-paper hover:border-accent/40"
+          }`}
+        >
+          <p className="text-sm font-semibold text-ink">{team2.shortName}</p>
+          <p className="font-mono text-xs text-gold">
+            {odds.team2Multiplier.toFixed(2)}x
+          </p>
+        </button>
+      </div>
+
+      <label className="mb-1 block text-xs uppercase tracking-wide text-muted">
+        Stake ({formatUsd(MIN_STAKE_CENTS)}–{formatUsd(MAX_STAKE_CENTS)})
+      </label>
+      <input
+        type="number"
+        min={MIN_STAKE_CENTS / 100}
+        max={MAX_STAKE_CENTS / 100}
+        step="0.01"
+        value={stakeDollars}
+        onChange={(e) => setStakeDollars(e.target.value)}
+        className="mb-4 w-full rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
+      />
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => submit("coinvoyage")}
+          disabled={submitting}
+          className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
+        >
+          {submitting ? "…" : "Place bet"}
+        </button>
+        <button
+          onClick={() => submit("testnet_eth")}
+          disabled={submitting}
+          title="Pay via Robinhood Chain testnet ETH instead of CoinVoyage -- no real money"
+          className="rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-xs font-semibold text-gold transition hover:border-gold disabled:opacity-50"
+        >
+          {submitting ? "…" : "Bet with testnet ETH"}
+        </button>
+      </div>
+      {error && <p className="mt-2 text-xs text-loss">{error}</p>}
+    </div>
+  );
+}

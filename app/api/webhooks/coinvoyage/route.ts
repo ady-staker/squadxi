@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { coinvoyageWebhookSecret } from "@/lib/coinvoyage";
 import { constantTimeEqual } from "@/lib/crypto";
 import { applyContestEntryStatus } from "@/lib/contest-fulfillment";
+import { applyLiveBetStatus } from "@/lib/live-betting";
 import { isOrderStatus, logUnrecognizedStatus } from "@/lib/order-status";
 
 type WebhookPayload = {
@@ -64,31 +65,45 @@ export async function POST(request: Request) {
   }
   const payload = parsed;
 
-  const entry = await prisma.contestEntry.findFirst({
-    where: { coinvoyageOrderId: payload.order.id },
-  });
+  const [entry, liveBet] = await Promise.all([
+    prisma.contestEntry.findFirst({
+      where: { coinvoyageOrderId: payload.order.id },
+    }),
+    prisma.liveBet.findFirst({
+      where: { coinvoyageOrderId: payload.order.id },
+    }),
+  ]);
 
-  if (!entry) {
-    // Genuinely unresolvable, or a race with POST /api/contests/[id]/enter's
-    // own create (this webhook can arrive before that commits) -- 404 so
+  if (!entry && !liveBet) {
+    // Genuinely unresolvable, or a race with the entry/bet route's own
+    // create (this webhook can arrive before that commits) -- 404 so
     // CoinVoyage retries; the race resolves itself within a retry or two.
-    return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
   if (!isOrderStatus(payload.order.status)) {
     logUnrecognizedStatus(
       payload.order.status,
-      `via webhook for contest entry ${entry.id}`,
+      `via webhook for coinvoyageOrderId ${payload.order.id}`,
     );
     return NextResponse.json({ received: true });
   }
 
   try {
     const deliveredAt = new Date(payload.delivered_at);
-    await applyContestEntryStatus(entry.id, payload.order.status, deliveredAt);
+    if (entry) {
+      await applyContestEntryStatus(
+        entry.id,
+        payload.order.status,
+        deliveredAt,
+      );
+    }
+    if (liveBet) {
+      await applyLiveBetStatus(liveBet.id, payload.order.status, deliveredAt);
+    }
   } catch (err) {
     console.error(
-      `Failed to apply webhook status for contest entry ${entry.id}`,
+      `Failed to apply webhook status for coinvoyageOrderId ${payload.order.id}`,
       err,
     );
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
