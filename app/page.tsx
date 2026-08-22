@@ -94,7 +94,7 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col gap-24">
       {/* Hero */}
-      <section className="relative -mx-4 overflow-hidden px-4 pb-4 pt-10 sm:-mx-[calc((100vw-100%)/2)] sm:px-[calc((100vw-100%)/2)]">
+      <section className="relative overflow-hidden pb-4 pt-10">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 -z-10 animate-floodlight-drift"
