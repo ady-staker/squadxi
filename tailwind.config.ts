@@ -4,6 +4,10 @@ const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        display: ["var(--font-display)", "sans-serif"],
+        body: ["var(--font-body)", "sans-serif"],
+      },
       colors: {
         // "Stadium under lights" theme -- deliberately distinct from all 5
         // sibling apps (PRIDE SUPPLY's dark ink, Vantage Peptides' clinical
@@ -27,6 +31,30 @@ const config: Config = {
         caution: "#F0894B", // warnings, disclaimers
         win: "#4ADE80",
         loss: "#E15A5A",
+      },
+      keyframes: {
+        "floodlight-drift": {
+          "0%, 100%": { transform: "translate(-4%, -3%) scale(1)" },
+          "50%": { transform: "translate(3%, 2%) scale(1.08)" },
+        },
+        "pulse-dot": {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.4", transform: "scale(0.75)" },
+        },
+        "rise-in": {
+          "0%": { opacity: "0", transform: "translateY(14px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        marquee: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+      },
+      animation: {
+        "floodlight-drift": "floodlight-drift 14s ease-in-out infinite",
+        "pulse-dot": "pulse-dot 1.6s ease-in-out infinite",
+        "rise-in": "rise-in 0.6s ease-out both",
+        marquee: "marquee 28s linear infinite",
       },
     },
   },
