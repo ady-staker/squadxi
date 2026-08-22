@@ -30,7 +30,6 @@ type Contest = {
   currentEntries: number;
   prizePoolCents: number;
   status: string;
-  payWithTestnetEth: boolean;
 };
 type FantasyTeam = { id: string; name: string; totalCredits: string };
 
@@ -182,7 +181,7 @@ function EnterContestForm({
     chainId: number;
   } | null>(null);
 
-  async function submit() {
+  async function submit(paymentMethod?: "coinvoyage" | "testnet_eth") {
     setSubmitting(true);
     setError(null);
     try {
@@ -192,6 +191,7 @@ function EnterContestForm({
         body: JSON.stringify({
           fantasyTeamId: teamId,
           idempotencyKey: crypto.randomUUID(),
+          paymentMethod,
         }),
       });
       const data = await res.json();
@@ -297,19 +297,33 @@ function EnterContestForm({
           ))}
         </select>
       )}
-      <button
-        onClick={submit}
-        disabled={submitting || !teamId}
-        className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
-      >
-        {submitting
-          ? "…"
-          : contest.entryFeeCents === 0
-            ? "Join free"
-            : contest.payWithTestnetEth
-              ? `Enter (${formatUsd(contest.entryFeeCents)} in testnet ETH)`
-              : `Enter (${formatUsd(contest.entryFeeCents)})`}
-      </button>
+      {contest.entryFeeCents === 0 ? (
+        <button
+          onClick={() => submit()}
+          disabled={submitting || !teamId}
+          className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
+        >
+          {submitting ? "…" : "Join free"}
+        </button>
+      ) : (
+        <>
+          <button
+            onClick={() => submit("coinvoyage")}
+            disabled={submitting || !teamId}
+            className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
+          >
+            {submitting ? "…" : `Enter (${formatUsd(contest.entryFeeCents)})`}
+          </button>
+          <button
+            onClick={() => submit("testnet_eth")}
+            disabled={submitting || !teamId}
+            title="Pay via Robinhood Chain testnet ETH instead of CoinVoyage -- no real money"
+            className="rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-xs font-semibold text-gold transition hover:border-gold disabled:opacity-50"
+          >
+            {submitting ? "…" : "Pay with testnet ETH"}
+          </button>
+        </>
+      )}
       {error && <p className="text-xs text-loss">{error}</p>}
     </div>
   );

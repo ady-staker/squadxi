@@ -43,9 +43,10 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
-  const { fantasyTeamId, idempotencyKey } = (body ?? {}) as {
+  const { fantasyTeamId, idempotencyKey, paymentMethod } = (body ?? {}) as {
     fantasyTeamId?: unknown;
     idempotencyKey?: unknown;
+    paymentMethod?: unknown;
   };
   if (typeof fantasyTeamId !== "string" || fantasyTeamId.length === 0) {
     return NextResponse.json(
@@ -60,6 +61,16 @@ export async function POST(
   ) {
     return NextResponse.json(
       { error: "Invalid idempotency key." },
+      { status: 400 },
+    );
+  }
+  if (
+    paymentMethod !== undefined &&
+    paymentMethod !== "coinvoyage" &&
+    paymentMethod !== "testnet_eth"
+  ) {
+    return NextResponse.json(
+      { error: "Invalid payment method." },
       { status: 400 },
     );
   }
@@ -176,13 +187,15 @@ export async function POST(
     }
   }
 
-  // Robinhood Chain testnet ETH entry: bypasses CoinVoyage entirely, so the
-  // whole entry -> finalize -> role-bonus-claim loop can be exercised with
-  // no real money. The frontend pays Settings.robinhoodContractAddress
+  // Robinhood Chain testnet ETH: one of the payment methods available on any
+  // paid contest (chosen by the user at entry time, not a special
+  // contest-only mode) -- bypasses CoinVoyage entirely for this entry, so
+  // the whole entry -> finalize -> role-bonus-claim loop can be exercised
+  // with no real money. The frontend pays Settings.robinhoodContractAddress
   // directly (a plain transfer, same address the role-bonus contract itself
   // lives at -- entry fees just top up the balance claims pay out from) and
   // reports the txHash to /confirm-testnet-payment for verification.
-  if (contest.payWithTestnetEth) {
+  if (paymentMethod === "testnet_eth") {
     const config = await resolveRobinhoodConfig();
     if (!config.contractAddress || !config.centsPerTestnetEth) {
       await releaseContestSlotStandalone(contestId);

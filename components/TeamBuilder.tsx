@@ -143,7 +143,7 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
             : (data.error ?? "Failed to save team."),
         );
       }
-      router.push("/dashboard");
+      router.push(`/matches/${matchId}`);
       router.refresh();
     } catch (err) {
       setSubmitError([

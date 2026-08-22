@@ -154,7 +154,6 @@ model Contest {
   rakeBps         Int      @default(1500) // 15%
   minEntriesToRun Int      @default(3)
   roleBonusBps    Int      @default(0) // bps of prizePoolCents carved out for the 4 Robinhood Chain role bonuses; 0 = feature off, zero behavior change
-  payWithTestnetEth Boolean @default(false) // entry fee paid in Robinhood Chain testnet ETH to Settings.robinhoodContractAddress instead of via CoinVoyage -- lets the whole entry->finalize->claim loop be exercised without spending real money
   status          String   @default("OPEN") // OPEN | LOCKED | LIVE | COMPLETED | FINALIZED | VOIDED
   createdAt       DateTime @default(now())
 }
