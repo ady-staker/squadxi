@@ -223,7 +223,8 @@ model ContestEntry {
 
 model Payout {
   id              String    @id @default(cuid())
-  contestEntryId  String    @unique
+  contestEntryId  String?   @unique // exactly one of contestEntryId/liveBetId is ever set, enforced in code not a DB constraint (this schema has none anywhere)
+  liveBetId       String?   @unique
   amountOwedCents Int
   chain           String?
   token           String?
@@ -232,6 +233,30 @@ model Payout {
   txNote          String?
   createdAt       DateTime  @default(now())
   paidAt          DateTime?
+}
+
+// --- Live match-winner betting (separate from fantasy contests entirely) --
+
+model LiveBet {
+  id                   String    @id @default(cuid())
+  matchId              String
+  userId               String
+  sideTeamId           String // Match.team1Id or team2Id
+  stakeCents           Int
+  oddsMultiplier       Decimal   @db.Decimal(4, 2) // locked in at placement time, not recomputed at settlement
+  coinvoyageOrderId    String?
+  testnetPaymentTxHash String?   @unique
+  status               String    @default("NONE") // lib/order-status.ts vocabulary, same as ContestEntry.paymentStatus
+  lastEventAt          DateTime?
+  idempotencyKey       String?   @unique
+  outcome              String? // WON | LOST | VOID
+  payoutCents          Int       @default(0)
+  claimId              String?   @unique // testnet-ETH winners only
+  createdAt            DateTime  @default(now())
+  settledAt            DateTime?
+
+  @@index([matchId])
+  @@index([userId])
 }
 
 // --- Robinhood Chain role-bonus payouts (separate from CoinVoyage, opt-in

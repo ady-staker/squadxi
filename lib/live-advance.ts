@@ -9,6 +9,7 @@ import {
   lockEntriesForMatch,
   finalizeMatchContests,
 } from "@/lib/contest-finalization";
+import { settleLiveBets } from "@/lib/live-betting";
 
 const TRANSACTION_OPTIONS = { timeout: 20000, maxWait: 10000 };
 const DEFAULT_ADVANCE_BY = 6; // one over's worth of legal-and-extra balls, a demo-visible chunk
@@ -155,6 +156,7 @@ export async function advanceMatch(
   }
   if (updated.status === "COMPLETED") {
     await finalizeMatchContests(matchId);
+    await settleLiveBets(matchId);
   }
 
   return {

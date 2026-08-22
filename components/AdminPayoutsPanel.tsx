@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type PayoutRow = {
   payoutId: string;
-  contestEntryId: string;
+  source: "contest" | "live-bet";
   displayName: string;
   email: string | null;
   contestName: string | null;
