@@ -6,6 +6,7 @@ import { AdminRefundsPanel } from "@/components/AdminRefundsPanel";
 import { AdminMatchesPanel } from "@/components/AdminMatchesPanel";
 import { AdminRoleBonusesPanel } from "@/components/AdminRoleBonusesPanel";
 import { AdminLiveBetsPanel } from "@/components/AdminLiveBetsPanel";
+import { AdminChatPanel } from "@/components/AdminChatPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,16 @@ export default function AdminPage() {
           claim on-chain from their own account.
         </p>
         <AdminLiveBetsPanel />
+      </div>
+
+      <div>
+        <h2 className="mb-4 text-xl font-semibold text-ink">Live Chat</h2>
+        <p className="mb-4 text-sm text-muted">
+          Customer support conversations from the site's chat widget. Polls for
+          new messages every few seconds -- no websocket infra, same pattern as
+          the live match views above.
+        </p>
+        <AdminChatPanel />
       </div>
     </div>
   );
