@@ -7,6 +7,7 @@ import {
   resolveRobinhoodConfig,
   verifyTestnetTransfer,
 } from "@/lib/robinhood-chain";
+import { settleLiveBetIfMatchAlreadyComplete } from "@/lib/live-betting";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 
@@ -43,19 +44,41 @@ export async function POST(
   if (bet.status === "COMPLETED") {
     return NextResponse.json({ success: true, alreadyConfirmed: true });
   }
+  // Without this, a worthless testnet transfer could confirm a CoinVoyage
+  // bet as paid, minting both a real Payout and an on-chain claim for it.
+  if (bet.coinvoyageOrderId) {
+    return NextResponse.json(
+      { error: "This bet was placed via CoinVoyage, not testnet ETH." },
+      { status: 409 },
+    );
+  }
 
   const config = await resolveRobinhoodConfig();
-  if (!config.contractAddress || !config.centsPerTestnetEth) {
+  if (!config.contractAddress) {
     return NextResponse.json(
       { error: "Robinhood Chain isn't configured yet." },
       { status: 503 },
     );
   }
 
-  const expectedAmountWei = centsToTestnetWei(
-    bet.stakeCents,
-    config.centsPerTestnetEth,
-  );
+  // Verify against the rate quoted at placement (persisted on the bet), not
+  // the live rate -- a rate change between placement and confirm must never
+  // invalidate a payment that matched what was actually quoted.
+  let expectedAmountWei: bigint;
+  if (bet.quotedTestnetAmountWei) {
+    expectedAmountWei = BigInt(bet.quotedTestnetAmountWei);
+  } else {
+    if (!config.centsPerTestnetEth) {
+      return NextResponse.json(
+        { error: "Robinhood Chain isn't configured yet." },
+        { status: 503 },
+      );
+    }
+    expectedAmountWei = centsToTestnetWei(
+      bet.stakeCents,
+      config.centsPerTestnetEth,
+    );
+  }
   const verified = await verifyTestnetTransfer(
     txHash as `0x${string}`,
     config.contractAddress,
@@ -87,6 +110,9 @@ export async function POST(
     }
     throw err;
   }
+
+  // Catches up a match that already completed before this payment confirmed.
+  await settleLiveBetIfMatchAlreadyComplete(bet.id);
 
   return NextResponse.json({ success: true });
 }

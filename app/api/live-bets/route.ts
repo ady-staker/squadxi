@@ -113,14 +113,61 @@ export async function POST(request: Request) {
       where: { idempotencyKey },
     });
     if (existing) {
-      if (
-        !isOrderStatus(existing.status) ||
-        !isFailureTerminalStatus(existing.status)
-      ) {
+      if (existing.userId !== user.id) {
+        return NextResponse.json(
+          { error: "That request was already submitted." },
+          { status: 409 },
+        );
+      }
+      if (existing.status === "COMPLETED") {
+        // Already paid -- deliberately omit testnetPayment/paymentUrl so
+        // the client (LiveBetPanel.submit()) falls through to "placed"
+        // instead of re-offering payment for a bet that's already settled.
         return NextResponse.json({
           liveBetId: existing.id,
           orderId: existing.coinvoyageOrderId,
           status: existing.status,
+          oddsMultiplier: existing.oddsMultiplier,
+        });
+      }
+      if (
+        !isOrderStatus(existing.status) ||
+        !isFailureTerminalStatus(existing.status)
+      ) {
+        // A retried submission must be able to actually pay, not just learn
+        // the bet exists -- paymentUrl is persisted for CoinVoyage bets;
+        // testnetPayment isn't persisted, so it's rebuilt from the current
+        // rate the same way confirm-testnet-payment already reads it.
+        if (existing.coinvoyageOrderId) {
+          return NextResponse.json({
+            liveBetId: existing.id,
+            orderId: existing.coinvoyageOrderId,
+            paymentUrl: existing.paymentUrl,
+            status: existing.status,
+            oddsMultiplier: existing.oddsMultiplier,
+          });
+        }
+        const config = await resolveRobinhoodConfig();
+        if (!config.contractAddress || !existing.quotedTestnetAmountWei) {
+          // Can't rebuild a payable testnet flow -- an explicit error here
+          // beats a response with no testnetPayment/paymentUrl, which the
+          // client (LiveBetPanel.submit()) would otherwise read as "placed"
+          // even though this bet is still unpaid and stuck.
+          return NextResponse.json(
+            { error: "Robinhood Chain isn't configured yet." },
+            { status: 503 },
+          );
+        }
+        return NextResponse.json({
+          liveBetId: existing.id,
+          orderId: null,
+          status: existing.status,
+          oddsMultiplier: existing.oddsMultiplier,
+          testnetPayment: {
+            toAddress: config.contractAddress,
+            amountWei: existing.quotedTestnetAmountWei,
+            chainId: config.chainId,
+          },
         });
       }
       // Dead attempt (EXPIRED/FAILED/REFUNDED) -- free the key and fall
@@ -146,6 +193,10 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     }
+    const quotedAmountWei = centsToTestnetWei(
+      stakeCents,
+      config.centsPerTestnetEth,
+    ).toString();
     try {
       const bet = await prisma.liveBet.create({
         data: {
@@ -156,6 +207,7 @@ export async function POST(request: Request) {
           oddsMultiplier,
           status: "AWAITING_PAYMENT",
           idempotencyKey: idempotencyKey ?? null,
+          quotedTestnetAmountWei: quotedAmountWei,
         },
       });
       return NextResponse.json({
@@ -165,10 +217,7 @@ export async function POST(request: Request) {
         oddsMultiplier,
         testnetPayment: {
           toAddress: config.contractAddress,
-          amountWei: centsToTestnetWei(
-            stakeCents,
-            config.centsPerTestnetEth,
-          ).toString(),
+          amountWei: quotedAmountWei,
           chainId: config.chainId,
         },
       });
@@ -270,6 +319,7 @@ export async function POST(request: Request) {
         stakeCents,
         oddsMultiplier,
         coinvoyageOrderId: invoice.order_id as string,
+        paymentUrl: invoice.payment_url,
         status: initialStatus,
         idempotencyKey: idempotencyKey ?? null,
       },
@@ -288,7 +338,9 @@ export async function POST(request: Request) {
         return NextResponse.json({
           liveBetId: winner.id,
           orderId: winner.coinvoyageOrderId,
+          paymentUrl: winner.paymentUrl,
           status: winner.status,
+          oddsMultiplier: winner.oddsMultiplier,
         });
       }
     }

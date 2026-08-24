@@ -139,6 +139,7 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
         data.match.team2 &&
         data.match.odds && (
           <LiveBetPanel
+            key={data.match.id}
             matchId={data.match.id}
             team1={data.match.team1}
             team2={data.match.team2}

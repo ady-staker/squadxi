@@ -58,6 +58,7 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
   const [voucherError, setVoucherError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
   async function requestVoucher() {
@@ -105,25 +106,32 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
     });
   }
 
+  async function confirmOnServer(hash: `0x${string}`) {
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      const res = await fetch(`/api/live-bets/${liveBetId}/claim/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txHash: hash }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to confirm.");
+      setConfirmed(true);
+    } catch (err) {
+      setConfirmError(
+        err instanceof Error ? err.message : "Failed to confirm claim.",
+      );
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   useEffect(() => {
-    if (!isConfirmed || !txHash || confirmed) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/live-bets/${liveBetId}/claim/confirm`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ txHash }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to confirm.");
-        setConfirmed(true);
-      } catch (err) {
-        setConfirmError(
-          err instanceof Error ? err.message : "Failed to confirm claim.",
-        );
-      }
-    })();
-  }, [isConfirmed, txHash, confirmed, liveBetId]);
+    if (!isConfirmed || !txHash || confirmed || confirming) return;
+    confirmOnServer(txHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConfirmed, txHash, confirmed, confirming]);
 
   if (confirmed) {
     return (
@@ -190,6 +198,21 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
         >
           {requesting ? "…" : "Get claim voucher"}
         </button>
+      ) : isConfirmed && txHash ? (
+        // Once the on-chain claim is mined, never offer to submit it again --
+        // if the server-side confirm step fails, retry re-verifies the SAME
+        // txHash instead of risking a second on-chain claim() call.
+        confirmError ? (
+          <button
+            onClick={() => confirmOnServer(txHash)}
+            disabled={confirming}
+            className="rounded-full bg-gold px-4 py-2 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
+          >
+            {confirming ? "Retrying…" : "Retry confirming claim"}
+          </button>
+        ) : (
+          <p className="text-xs text-muted">Confirming your claim…</p>
+        )
       ) : (
         <button
           onClick={submitClaim}
@@ -206,7 +229,6 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
 
       {voucherError && <p className="text-xs text-loss">{voucherError}</p>}
       {writeError && <p className="text-xs text-loss">{writeError.message}</p>}
-      {confirmError && <p className="text-xs text-loss">{confirmError}</p>}
     </div>
   );
 }

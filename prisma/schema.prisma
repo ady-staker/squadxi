@@ -245,6 +245,8 @@ model LiveBet {
   stakeCents           Int
   oddsMultiplier       Decimal   @db.Decimal(4, 2) // locked in at placement time, not recomputed at settlement
   coinvoyageOrderId    String?
+  paymentUrl           String? // CoinVoyage checkout link, persisted so an idempotent replay can return the same link (CoinVoyage has no "fetch invoice by id" call to regenerate it)
+  quotedTestnetAmountWei String? // testnet-ETH amount quoted at placement, persisted so confirm-testnet-payment checks the rate the user actually saw, not whatever Settings.robinhoodCentsPerTestnetEth is at confirm time
   testnetPaymentTxHash String?   @unique
   status               String    @default("NONE") // lib/order-status.ts vocabulary, same as ContestEntry.paymentStatus
   lastEventAt          DateTime?
@@ -311,4 +313,38 @@ model LoginAttempt {
   failCount   Int       @default(0)
   lockedUntil DateTime?
   updatedAt   DateTime  @updatedAt
+}
+
+// --- Live customer-support chat ---------------------------------------------
+// Polling-based (same pattern as LiveBet/Match live views, not a websocket),
+// so no infra beyond the DB is needed. A thread belongs to either a logged-in
+// User (userId) or an anonymous site visitor identified by a client-issued
+// guestKey cookie -- exactly one of the two is set, enforced in code like
+// Payout's contestEntryId/liveBetId pairing above. Admin has no User row (see
+// lib/admin-auth.ts's separate stateless scheme), so ChatMessage.sender is
+// the USER/ADMIN discriminator rather than a sender FK.
+model ChatThread {
+  id            String    @id @default(cuid())
+  userId        String?
+  guestKey      String?
+  status        String    @default("OPEN") // OPEN | CLOSED
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastMessageAt DateTime?
+
+  @@index([userId])
+  @@index([guestKey])
+  @@index([status])
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  threadId    String
+  sender      String // USER | ADMIN
+  body        String
+  createdAt   DateTime @default(now())
+  readByAdmin Boolean  @default(false)
+  readByUser  Boolean  @default(false)
+
+  @@index([threadId])
 }

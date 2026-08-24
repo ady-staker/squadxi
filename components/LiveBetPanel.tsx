@@ -13,11 +13,11 @@ import {
 import { injected } from "wagmi/connectors";
 import { robinhoodChainTestnet } from "@/lib/wagmi-config";
 import { MIN_STAKE_CENTS, MAX_STAKE_CENTS } from "@/lib/live-bet-constants";
+import { isTerminalStatus } from "@/lib/order-status";
 
 type Team = { id: string; shortName: string; name: string };
 type Odds = { team1Multiplier: number; team2Multiplier: number };
 
-const TERMINAL_STATUSES = ["COMPLETED", "EXPIRED", "REFUNDED", "FAILED"];
 const STATUS_POLL_MS = 4000;
 
 function formatUsd(cents: number): string {
@@ -50,31 +50,39 @@ function TestnetBetPaymentFlow({
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({ hash: txHash });
   const [confirmed, setConfirmed] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
+  async function confirmOnServer(hash: `0x${string}`) {
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      const res = await fetch(
+        `/api/live-bets/${liveBetId}/confirm-testnet-payment`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ txHash: hash }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to confirm.");
+      setConfirmed(true);
+      onConfirmed();
+    } catch (err) {
+      setConfirmError(
+        err instanceof Error ? err.message : "Failed to confirm payment.",
+      );
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   useEffect(() => {
-    if (!isConfirmed || !txHash || confirmed) return;
-    (async () => {
-      try {
-        const res = await fetch(
-          `/api/live-bets/${liveBetId}/confirm-testnet-payment`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ txHash }),
-          },
-        );
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to confirm.");
-        setConfirmed(true);
-        onConfirmed();
-      } catch (err) {
-        setConfirmError(
-          err instanceof Error ? err.message : "Failed to confirm payment.",
-        );
-      }
-    })();
-  }, [isConfirmed, txHash, confirmed, liveBetId, onConfirmed]);
+    if (!isConfirmed || !txHash || confirmed || confirming) return;
+    confirmOnServer(txHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConfirmed, txHash, confirmed, confirming]);
 
   if (confirmed) {
     return (
@@ -111,6 +119,29 @@ function TestnetBetPaymentFlow({
     );
   }
 
+  // Once mined, never offer to send another transfer -- retry re-verifies
+  // the same txHash instead.
+  if (isConfirmed && txHash) {
+    return (
+      <div className="flex flex-col items-start gap-1">
+        {confirmError ? (
+          <>
+            <button
+              onClick={() => confirmOnServer(txHash)}
+              disabled={confirming}
+              className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
+            >
+              {confirming ? "Retrying…" : "Retry confirming payment"}
+            </button>
+            <p className="text-xs text-loss">{confirmError}</p>
+          </>
+        ) : (
+          <p className="text-xs text-muted">Confirming your payment…</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-start gap-1">
       <button
@@ -130,7 +161,6 @@ function TestnetBetPaymentFlow({
         Connected as <span className="font-mono">{address}</span>
       </p>
       {sendError && <p className="text-xs text-loss">{sendError.message}</p>}
-      {confirmError && <p className="text-xs text-loss">{confirmError}</p>}
     </div>
   );
 }
@@ -153,6 +183,10 @@ export function LiveBetPanel({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  // Stable per mount (not per submit) so a retry dedupes; suffixed with
+  // paymentMethod at use so switching methods starts a fresh bet instead
+  // of replaying the first method's response.
+  const [idempotencyKeyBase] = useState(() => crypto.randomUUID());
 
   const [liveBetId, setLiveBetId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -163,6 +197,7 @@ export function LiveBetPanel({
     chainId: number;
   } | null>(null);
   const [placed, setPlaced] = useState(false);
+  const [lockedOdds, setLockedOdds] = useState<number | null>(null);
 
   async function submit(paymentMethod: "coinvoyage" | "testnet_eth") {
     const stakeCents = Math.round(Number(stakeDollars) * 100);
@@ -186,7 +221,7 @@ export function LiveBetPanel({
           matchId,
           sideTeamId,
           stakeCents,
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: `${idempotencyKeyBase}-${paymentMethod}`,
           paymentMethod,
         }),
       });
@@ -196,6 +231,12 @@ export function LiveBetPanel({
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to place bet.");
+      // Show the odds actually locked in for settlement -- Number() handles
+      // both a fresh number and a replayed response's serialized Decimal string.
+      if (data.oddsMultiplier !== undefined && data.oddsMultiplier !== null) {
+        const n = Number(data.oddsMultiplier);
+        if (!Number.isNaN(n)) setLockedOdds(n);
+      }
       if (data.testnetPayment) {
         setLiveBetId(data.liveBetId);
         setTestnetPayment(data.testnetPayment);
@@ -215,7 +256,7 @@ export function LiveBetPanel({
 
   // Same webhook-fallback poll as MatchHub's EnterContestForm.
   useEffect(() => {
-    if (!liveBetId || !status || TERMINAL_STATUSES.includes(status)) return;
+    if (!liveBetId || !status || isTerminalStatus(status)) return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/live-bets/${liveBetId}/status`);
@@ -245,6 +286,11 @@ export function LiveBetPanel({
   if (testnetPayment && liveBetId) {
     return (
       <div className="rounded-2xl border border-gold/30 bg-gold/10 p-5">
+        {lockedOdds !== null && (
+          <p className="mb-2 text-xs text-muted">
+            Locked in at {lockedOdds.toFixed(2)}x odds
+          </p>
+        )}
         <TestnetBetPaymentFlow
           liveBetId={liveBetId}
           toAddress={testnetPayment.toAddress}
@@ -259,12 +305,19 @@ export function LiveBetPanel({
   if (paymentUrl) {
     if (placed || status === "COMPLETED") {
       return (
-        <p className="rounded-2xl border border-accent/30 bg-accent/10 p-5 text-sm font-semibold text-accent">
-          Payment confirmed — your bet is placed!
-        </p>
+        <div className="rounded-2xl border border-accent/30 bg-accent/10 p-5">
+          <p className="text-sm font-semibold text-accent">
+            Payment confirmed — your bet is placed!
+          </p>
+          {lockedOdds !== null && (
+            <p className="mt-1 text-xs text-accent/80">
+              Locked in at {lockedOdds.toFixed(2)}x odds
+            </p>
+          )}
+        </div>
       );
     }
-    if (status && TERMINAL_STATUSES.includes(status)) {
+    if (status && isTerminalStatus(status)) {
       return (
         <p className="rounded-2xl border border-loss/30 bg-loss/10 p-5 text-sm text-loss">
           Payment {status.toLowerCase()}. Please try placing your bet again.
@@ -273,6 +326,11 @@ export function LiveBetPanel({
     }
     return (
       <div className="flex flex-col items-start gap-1 rounded-2xl border border-gold/30 bg-gold/10 p-5">
+        {lockedOdds !== null && (
+          <p className="mb-1 text-xs text-muted">
+            Locked in at {lockedOdds.toFixed(2)}x odds
+          </p>
+        )}
         <a
           href={paymentUrl}
           target="_blank"
@@ -291,9 +349,14 @@ export function LiveBetPanel({
 
   if (placed) {
     return (
-      <p className="rounded-2xl border border-accent/30 bg-accent/10 p-5 text-sm font-semibold text-accent">
-        Your bet is placed!
-      </p>
+      <div className="rounded-2xl border border-accent/30 bg-accent/10 p-5">
+        <p className="text-sm font-semibold text-accent">Your bet is placed!</p>
+        {lockedOdds !== null && (
+          <p className="mt-1 text-xs text-accent/80">
+            Locked in at {lockedOdds.toFixed(2)}x odds
+          </p>
+        )}
+      </div>
     );
   }
 

@@ -52,13 +52,6 @@ export async function POST(
     );
   }
 
-  // Wallet is collected lazily, right here at first voucher request -- same
-  // nullable-until-claim-time convention as RoleBonusClaim.walletAddress.
-  await prisma.liveBet.update({
-    where: { id: bet.id },
-    data: { claimWalletAddress: walletAddress },
-  });
-
   const config = await resolveRobinhoodConfig();
   if (!config.contractAddress) {
     return NextResponse.json(
@@ -66,6 +59,34 @@ export async function POST(
       { status: 503 },
     );
   }
+
+  // Wallet is collected lazily, at first voucher request -- but unlike
+  // RoleBonusClaim.walletAddress (which tolerates a later request silently
+  // overwriting it, since nothing on-chain has happened yet), confirm/route.ts
+  // verifies the on-chain event's winner against this exact column read
+  // fresh at confirm time. Letting a second request quietly repoint it would
+  // let an in-flight, already-submitted, genuinely valid claim tx get
+  // rejected at confirm because the DB now expects a different wallet. So
+  // once a wallet is on file for an unclaimed bet, it's locked until claimed.
+  // Compared case-insensitively -- same convention as verifyBonusClaimedOnChain
+  // and the client's own submitClaim(), since wallet connectors don't
+  // consistently return the same case across calls.
+  if (
+    bet.claimWalletAddress &&
+    bet.claimWalletAddress.toLowerCase() !== walletAddress.toLowerCase()
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "A claim is already in progress for a different wallet on this bet.",
+      },
+      { status: 409 },
+    );
+  }
+  await prisma.liveBet.update({
+    where: { id: bet.id },
+    data: { claimWalletAddress: walletAddress },
+  });
 
   const amountWei = BigInt(bet.claimAmountWei);
   const signature = await signClaimVoucher(
