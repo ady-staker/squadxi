@@ -40,9 +40,9 @@ export function MyEntries() {
   if (!entries) return <p className="text-sm text-muted">Loading…</p>;
   if (entries.length === 0) {
     return (
-      <p className="rounded-2xl border border-border bg-surface p-6 text-sm text-muted">
-        You haven't joined any leagues or contests yet.{" "}
-        <Link href="/matches" className="text-accent underline">
+      <p className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center text-sm text-muted">
+        You haven&apos;t joined any leagues or contests yet.{" "}
+        <Link href="/matches" className="text-primary underline">
           Browse matches
         </Link>{" "}
         to get started.
@@ -60,7 +60,7 @@ export function MyEntries() {
                 ? `/matches/${e.matchId}`
                 : `/matches/${e.matchId}/live`
             }
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 transition hover:border-accent/50"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 transition hover:-translate-y-0.5 hover:border-primary/40"
           >
             <div>
               <p className="font-medium text-ink">

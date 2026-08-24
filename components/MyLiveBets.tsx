@@ -44,9 +44,9 @@ export function MyLiveBets() {
   if (!bets) return <p className="text-sm text-muted">Loading…</p>;
   if (bets.length === 0) {
     return (
-      <p className="rounded-2xl border border-border bg-surface p-6 text-sm text-muted">
-        You haven't placed any live bets yet. Bet on a match while it's live
-        from its match page.
+      <p className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center text-sm text-muted">
+        You haven&apos;t placed any live bets yet. Bet on a match while
+        it&apos;s live from its match page.
       </p>
     );
   }
@@ -57,7 +57,7 @@ export function MyLiveBets() {
         <div key={b.id} className="flex flex-col gap-1.5">
           <Link
             href={`/matches/${b.matchId}/live`}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 transition hover:border-accent/50"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 transition hover:-translate-y-0.5 hover:border-primary/40"
           >
             <div>
               <p className="font-medium text-ink">{b.matchLabel}</p>

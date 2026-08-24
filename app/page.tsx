@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { LiveMatchStrip } from "@/components/home/LiveMatchStrip";
 import { FaqAccordion } from "@/components/home/FaqAccordion";
 import { TeamCrest } from "@/components/home/TeamCrest";
+import { RevealOnScroll } from "@/components/RevealOnScroll";
+import { DownloadIcon } from "@/components/icons";
 import {
   BatIcon,
   UsersIcon,
@@ -11,6 +13,26 @@ import {
   ShieldIcon,
   BoltIcon,
 } from "@/components/home/icons";
+
+// Tailwind's compiler needs literal class strings, not template-built ones
+// -- so the feature grid's rotating brand color is a lookup, not a join.
+const FEATURE_ACCENTS = [
+  {
+    bg: "bg-primary/10",
+    text: "text-primary",
+    hoverBg: "group-hover:bg-primary/20",
+  },
+  {
+    bg: "bg-secondary/10",
+    text: "text-secondary",
+    hoverBg: "group-hover:bg-secondary/20",
+  },
+  {
+    bg: "bg-tertiary/10",
+    text: "text-tertiary",
+    hoverBg: "group-hover:bg-tertiary/20",
+  },
+] as const;
 
 async function getHomeStats() {
   const [playerCount, teamCount, liveCount, upcomingCount, openContests] =
@@ -114,13 +136,13 @@ export default async function HomePage() {
         />
 
         <div className="mx-auto flex max-w-5xl flex-col items-start gap-6 py-10">
-          <span className="animate-rise-in rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent">
+          <span className="animate-rise-in rounded-full border border-tertiary/30 bg-tertiary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-tertiary">
             Cricket Fantasy League
           </span>
           <h1 className="animate-rise-in max-w-2xl font-display text-5xl font-bold uppercase leading-[0.95] tracking-tight text-ink sm:text-7xl">
             Build your XI.
             <br />
-            <span className="text-accent">Win with your squad.</span>
+            <span className="text-primary">Win with your squad.</span>
           </h1>
           <p
             className="animate-rise-in max-w-lg text-base text-muted sm:text-lg"
@@ -137,13 +159,13 @@ export default async function HomePage() {
           >
             <Link
               href="/matches"
-              className="rounded-full bg-accent px-6 py-3 text-sm font-semibold text-paper transition hover:bg-accent-dark"
+              className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-dark"
             >
               Browse matches
             </Link>
             <Link
               href="/signup"
-              className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-ink transition hover:border-accent"
+              className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-ink transition hover:border-primary"
             >
               Create account
             </Link>
@@ -190,7 +212,7 @@ export default async function HomePage() {
       </section>
 
       {/* How it works */}
-      <section className="flex flex-col gap-8">
+      <RevealOnScroll className="flex flex-col gap-8">
         <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
           How it works
         </h2>
@@ -205,31 +227,36 @@ export default async function HomePage() {
             </div>
           ))}
         </div>
-      </section>
+      </RevealOnScroll>
 
       {/* Features grid */}
-      <section className="flex flex-col gap-8">
+      <RevealOnScroll className="flex flex-col gap-8">
         <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
           Everything you need to run a league
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="group rounded-2xl border border-border bg-surface p-6 transition hover:border-accent/40 hover:bg-surface/80"
-            >
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent transition group-hover:bg-accent/20">
-                <f.icon className="h-5 w-5" />
+          {FEATURES.map((f, i) => {
+            const accent = FEATURE_ACCENTS[i % FEATURE_ACCENTS.length];
+            return (
+              <div
+                key={f.title}
+                className="group rounded-2xl border border-border bg-surface p-6 transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-surface/80"
+              >
+                <div
+                  className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl transition ${accent.bg} ${accent.text} ${accent.hoverBg}`}
+                >
+                  <f.icon className="h-5 w-5" />
+                </div>
+                <h3 className="mb-1.5 font-semibold text-ink">{f.title}</h3>
+                <p className="text-sm leading-relaxed text-muted">{f.body}</p>
               </div>
-              <h3 className="mb-1.5 font-semibold text-ink">{f.title}</h3>
-              <p className="text-sm leading-relaxed text-muted">{f.body}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
-      </section>
+      </RevealOnScroll>
 
       {/* Payment methods */}
-      <section className="rounded-2xl border border-border bg-surface p-8">
+      <RevealOnScroll className="rounded-2xl border border-border bg-surface p-8">
         <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
           Pay however you want
         </h2>
@@ -248,7 +275,7 @@ export default async function HomePage() {
             </p>
           </div>
           <div className="rounded-xl border border-border bg-paper p-5">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-accent">
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-secondary">
               Robinhood Chain testnet
             </p>
             <p className="mt-2 text-sm text-muted">
@@ -257,26 +284,43 @@ export default async function HomePage() {
             </p>
           </div>
         </div>
-      </section>
+      </RevealOnScroll>
+
+      {/* App download promo */}
+      <RevealOnScroll className="flex flex-col items-center gap-4 rounded-2xl border border-tertiary/30 bg-tertiary/5 p-10 text-center">
+        <DownloadIcon className="h-8 w-8 text-tertiary" />
+        <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-ink">
+          Take SquadXI with you
+        </h2>
+        <p className="max-w-md text-sm text-muted">
+          The mobile app is on the way. Get notified the moment it&apos;s ready.
+        </p>
+        <Link
+          href="/download"
+          className="rounded-full bg-tertiary px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+        >
+          Get the app
+        </Link>
+      </RevealOnScroll>
 
       {/* Rosters */}
-      <section className="flex flex-col gap-6">
+      <RevealOnScroll className="flex flex-col gap-6">
         <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
           Six sides. Real rosters.
         </h2>
         <RosterStrip />
-      </section>
+      </RevealOnScroll>
 
       {/* FAQ */}
-      <section className="flex flex-col gap-6">
+      <RevealOnScroll className="flex flex-col gap-6">
         <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-ink">
           Frequently asked
         </h2>
         <FaqAccordion />
-      </section>
+      </RevealOnScroll>
 
       {/* Final CTA */}
-      <section className="rounded-2xl border border-accent/30 bg-accent/5 p-10 text-center">
+      <RevealOnScroll className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-tertiary/10 p-10 text-center">
         <h2 className="font-display text-3xl font-bold uppercase tracking-tight text-ink">
           Your XI is waiting.
         </h2>
@@ -286,11 +330,11 @@ export default async function HomePage() {
         </p>
         <Link
           href="/matches"
-          className="mt-6 inline-block rounded-full bg-accent px-8 py-3 text-sm font-semibold text-paper transition hover:bg-accent-dark"
+          className="mt-6 inline-block rounded-full bg-primary px-8 py-3 text-sm font-semibold text-white transition hover:bg-primary-dark"
         >
           Browse matches
         </Link>
-      </section>
+      </RevealOnScroll>
     </div>
   );
 }

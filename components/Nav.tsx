@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { LogoutButton } from "@/components/LogoutButton";
+import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { DownloadIcon } from "@/components/icons";
 
 export async function Nav() {
   const user = await getCurrentUser();
@@ -8,21 +11,23 @@ export async function Nav() {
   return (
     <header className="border-b border-border bg-paper">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-paper">
-            XI
-          </span>
-          <span className="text-lg font-bold tracking-tight text-ink">
-            Squad<span className="text-accent">XI</span>
-          </span>
+        <Link href="/">
+          <Logo />
         </Link>
 
-        <nav className="flex items-center gap-6 text-sm">
+        <nav className="flex items-center gap-5 text-sm">
           <Link
             href="/matches"
             className="text-muted transition hover:text-ink"
           >
             Matches
+          </Link>
+          <Link
+            href="/download"
+            className="hidden items-center gap-1.5 text-muted transition hover:text-ink sm:flex"
+          >
+            <DownloadIcon className="h-4 w-4" />
+            Get the app
           </Link>
           {user ? (
             <>
@@ -44,12 +49,13 @@ export async function Nav() {
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark"
+                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark"
               >
                 Create account
               </Link>
             </>
           )}
+          <ThemeToggle />
         </nav>
       </div>
     </header>

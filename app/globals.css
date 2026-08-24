@@ -2,13 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme tokens as RGB triplets (consumed via rgb(var(--x) / <alpha-value>)
+ * in tailwind.config.ts). Dark is the site's original identity and stays
+ * the bare-:root default; prefers-color-scheme:light flips first-time
+ * visitors whose OS asks for light, and an explicit data-theme (set by
+ * ThemeToggle) always wins over both.
+ */
+:root {
+  --color-paper: 11 18 32;
+  --color-ink: 243 246 244;
+  --color-surface: 19 28 46;
+  --color-border: 36 48 68;
+  --color-muted: 134 149 172;
+  --color-primary: 109 94 245;
+  --color-primary-dark: 86 71 217;
+  --color-secondary: 74 222 128;
+  --color-secondary-dark: 34 185 102;
+  --color-tertiary: 255 79 163;
+  --color-gold: 245 185 63;
+  --color-caution: 240 137 75;
+  --color-loss: 225 90 90;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-paper: 247 248 252;
+    --color-ink: 11 18 32;
+    --color-surface: 255 255 255;
+    --color-border: 226 229 240;
+    --color-muted: 91 100 120;
+    --color-primary: 90 74 227;
+    --color-primary-dark: 74 59 196;
+    --color-secondary: 34 185 102;
+    --color-secondary-dark: 23 138 75;
+    --color-tertiary: 224 51 154;
+    --color-gold: 201 138 30;
+    --color-caution: 214 106 43;
+    --color-loss: 209 69 69;
+  }
+}
+
+:root[data-theme="light"] {
+  --color-paper: 247 248 252;
+  --color-ink: 11 18 32;
+  --color-surface: 255 255 255;
+  --color-border: 226 229 240;
+  --color-muted: 91 100 120;
+  --color-primary: 90 74 227;
+  --color-primary-dark: 74 59 196;
+  --color-secondary: 34 185 102;
+  --color-secondary-dark: 23 138 75;
+  --color-tertiary: 224 51 154;
+  --color-gold: 201 138 30;
+  --color-caution: 214 106 43;
+  --color-loss: 209 69 69;
+}
+
+:root[data-theme="dark"] {
+  --color-paper: 11 18 32;
+  --color-ink: 243 246 244;
+  --color-surface: 19 28 46;
+  --color-border: 36 48 68;
+  --color-muted: 134 149 172;
+  --color-primary: 109 94 245;
+  --color-primary-dark: 86 71 217;
+  --color-secondary: 74 222 128;
+  --color-secondary-dark: 34 185 102;
+  --color-tertiary: 255 79 163;
+  --color-gold: 245 185 63;
+  --color-caution: 240 137 75;
+  --color-loss: 225 90 90;
+}
+
 html,
 body {
-  background-color: #0b1220;
+  background-color: rgb(var(--color-paper));
+}
+
+html {
+  transition: background-color 0.3s ease;
 }
 
 * {
-  scrollbar-color: #243044 #0b1220;
+  scrollbar-color: rgb(var(--color-border)) rgb(var(--color-paper));
 }
 
 @media (prefers-reduced-motion: reduce) {

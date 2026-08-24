@@ -12,25 +12,33 @@ const config: Config = {
         // "Stadium under lights" theme -- deliberately distinct from all 5
         // sibling apps (PRIDE SUPPLY's dark ink, Vantage Peptides' clinical
         // light, Flipside's dark gold/casino, Meridian Dental's warm
-        // cream/coral, ElfSwap's space-violet DeFi glass). Reuses the same
-        // token names (ink/surface/border/muted/accent/accent-dark/caution)
-        // as the family convention so copied component JSX keeps working,
-        // but with cricket-native values: deep floodlit-night navy, pitch
-        // green as the primary action color, and a separate amber/gold
-        // token reserved specifically for money/prize contexts (entry fees,
-        // prize pools, payouts) so cash amounts read distinctly from normal
-        // UI actions anywhere in the app.
-        paper: "#0B1220", // page background -- night stadium navy
-        ink: "#F3F6F4", // primary text / headings
-        surface: "#131C2E", // card / panel background
-        border: "#243044", // hairline borders
-        muted: "#8695AC", // secondary text
-        accent: "#4ADE80", // pitch green -- primary buttons, links, live indicators
-        "accent-dark": "#22B966", // hover state for accent
-        gold: "#F5B93F", // prize pool / money amounts / captain badge
-        caution: "#F0894B", // warnings, disclaimers
-        win: "#4ADE80",
-        loss: "#E15A5A",
+        // cream/coral, ElfSwap's space-violet DeFi glass). Values now live
+        // as CSS custom properties in globals.css (light/dark/system), read
+        // here via rgb(var(--x) / <alpha-value>) so opacity utilities keep
+        // working. `gold`/`caution`/`loss`/`win` stay reserved specifically
+        // for money/prize/warning contexts -- untouched by the toggle's
+        // brand-color repaint so cash amounts still read distinctly from
+        // normal UI actions anywhere in the app.
+        paper: "rgb(var(--color-paper) / <alpha-value>)",
+        ink: "rgb(var(--color-ink) / <alpha-value>)",
+        surface: "rgb(var(--color-surface) / <alpha-value>)",
+        border: "rgb(var(--color-border) / <alpha-value>)",
+        muted: "rgb(var(--color-muted) / <alpha-value>)",
+        // primary: the repaint's new brand/CTA color (indigo)
+        primary: "rgb(var(--color-primary) / <alpha-value>)",
+        "primary-dark": "rgb(var(--color-primary-dark) / <alpha-value>)",
+        // accent/secondary: pitch green, narrowed to live/positive/hover
+        // highlights -- same value, two names for readability at call sites
+        accent: "rgb(var(--color-secondary) / <alpha-value>)",
+        "accent-dark": "rgb(var(--color-secondary-dark) / <alpha-value>)",
+        secondary: "rgb(var(--color-secondary) / <alpha-value>)",
+        "secondary-dark": "rgb(var(--color-secondary-dark) / <alpha-value>)",
+        // tertiary: new magenta accent for offers/marquee/energy moments
+        tertiary: "rgb(var(--color-tertiary) / <alpha-value>)",
+        gold: "rgb(var(--color-gold) / <alpha-value>)",
+        caution: "rgb(var(--color-caution) / <alpha-value>)",
+        win: "rgb(var(--color-secondary) / <alpha-value>)",
+        loss: "rgb(var(--color-loss) / <alpha-value>)",
       },
       keyframes: {
         "floodlight-drift": {

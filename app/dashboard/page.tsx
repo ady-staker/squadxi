@@ -9,11 +9,16 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-10">
-      <div>
+      <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-surface to-tertiary/5 p-6">
         <h1 className="text-2xl font-semibold text-ink">My Leagues</h1>
         <p className="text-sm text-muted">Welcome back, {user.displayName}.</p>
       </div>
-      <MyEntries />
+      <div>
+        <h2 className="mb-3 text-lg font-semibold text-ink">
+          Contests &amp; Leagues
+        </h2>
+        <MyEntries />
+      </div>
       <div>
         <h2 className="mb-3 text-lg font-semibold text-ink">My Live Bets</h2>
         <MyLiveBets />

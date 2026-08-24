@@ -78,7 +78,7 @@ function CreateContestForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-accent hover:text-ink"
+        className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-primary hover:text-ink"
       >
         + Contest
       </button>
@@ -116,7 +116,7 @@ function CreateContestForm({
         <button
           onClick={submit}
           disabled={submitting}
-          className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
+          className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50"
         >
           {submitting ? "…" : "Create"}
         </button>
@@ -167,14 +167,14 @@ function AdvanceButton({
         <button
           onClick={() => advance(6)}
           disabled={submitting}
-          className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
+          className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50"
         >
           {submitting ? "…" : "Advance +1 over"}
         </button>
         <button
           onClick={() => advance(500)}
           disabled={submitting}
-          className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-accent hover:text-ink disabled:opacity-50"
+          className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-primary hover:text-ink disabled:opacity-50"
         >
           Finish match
         </button>

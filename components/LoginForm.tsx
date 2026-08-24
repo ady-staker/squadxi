@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const inputClass =
-  "w-full rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none";
 
 export function LoginForm({ next }: { next: string }) {
   const [email, setEmail] = useState("");
@@ -60,7 +60,7 @@ export function LoginForm({ next }: { next: string }) {
       <button
         type="submit"
         disabled={submitting || !email || !password}
-        className="w-full rounded-full bg-accent px-6 py-3 text-sm font-semibold text-paper transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
       >
         {submitting ? "Signing in…" : "Sign in"}
       </button>
