@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   useAccount,
   useConnect,
+  useDisconnect,
   useChainId,
   useSwitchChain,
   useSendTransaction,
@@ -14,6 +15,7 @@ import { injected } from "wagmi/connectors";
 import { robinhoodChainTestnet } from "@/lib/wagmi-config";
 import { MIN_STAKE_CENTS, MAX_STAKE_CENTS } from "@/lib/live-bet-constants";
 import { isTerminalStatus } from "@/lib/order-status";
+import { describeChainSwitchError } from "@/lib/wallet-errors";
 
 type Team = { id: string; shortName: string; name: string };
 type Odds = { team1Multiplier: number; team2Multiplier: number };
@@ -30,15 +32,18 @@ function TestnetBetPaymentFlow({
   amountWei,
   chainId,
   onConfirmed,
+  onCancel,
 }: {
   liveBetId: string;
   toAddress: `0x${string}`;
   amountWei: string;
   chainId: number;
   onConfirmed: () => void;
+  onCancel: () => void;
 }) {
   const { address, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
+  const { disconnect } = useDisconnect();
   const connectedChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const {
@@ -65,14 +70,19 @@ function TestnetBetPaymentFlow({
       await switchChainAsync({ chainId: robinhoodChainTestnet.id });
       sendTransaction({ to: toAddress, value: BigInt(amountWei), chainId });
     } catch (err) {
-      setSwitchError(
-        err instanceof Error
-          ? err.message
-          : "Failed to switch to Robinhood Chain testnet.",
-      );
+      setSwitchError(describeChainSwitchError(err));
     } finally {
       setSwitchingChain(false);
     }
+  }
+
+  // Fully tears down this attempt -- disconnects the wallet (so a retry
+  // starts from "Connect wallet" instead of silently reusing this session)
+  // and hands control back to the parent to drop this component and show
+  // the original payment-method buttons again.
+  function cancel() {
+    disconnect();
+    onCancel();
   }
 
   async function confirmOnServer(hash: `0x${string}`) {
@@ -117,12 +127,20 @@ function TestnetBetPaymentFlow({
   if (!isConnected) {
     return (
       <div className="flex flex-col items-start gap-1">
-        <button
-          onClick={() => connect({ connector: injected() })}
-          className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
-        >
-          Connect wallet to pay
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => connect({ connector: injected() })}
+            className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
+          >
+            Connect wallet to pay
+          </button>
+          <button
+            onClick={cancel}
+            className="text-xs text-muted underline hover:text-ink"
+          >
+            Cancel
+          </button>
+        </div>
         {connectError && (
           <p className="text-xs text-loss">No wallet extension found.</p>
         )}
@@ -134,12 +152,20 @@ function TestnetBetPaymentFlow({
   if (connectedChainId !== robinhoodChainTestnet.id && !switchingChain) {
     return (
       <div className="flex flex-col items-start gap-1">
-        <button
-          onClick={payNow}
-          className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
-        >
-          Switch to Robinhood Chain testnet
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={payNow}
+            className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
+          >
+            Switch to Robinhood Chain testnet
+          </button>
+          <button
+            onClick={cancel}
+            className="text-xs text-muted underline hover:text-ink"
+          >
+            Cancel
+          </button>
+        </div>
         {switchError && <p className="text-xs text-loss">{switchError}</p>}
       </div>
     );
@@ -170,19 +196,31 @@ function TestnetBetPaymentFlow({
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <button
-        onClick={payNow}
-        disabled={switchingChain || isPending || isConfirming}
-        className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
-      >
-        {switchingChain
-          ? "Switching network…"
-          : isPending
-            ? "Confirm in wallet…"
-            : isConfirming
-              ? "Waiting for confirmation…"
-              : `Pay ${(Number(amountWei) / 1e18).toFixed(4)} testnet ETH`}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={payNow}
+          disabled={switchingChain || isPending || isConfirming}
+          className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
+        >
+          {switchingChain
+            ? "Switching network…"
+            : isPending
+              ? "Confirm in wallet…"
+              : isConfirming
+                ? "Waiting for confirmation…"
+                : `Pay ${(Number(amountWei) / 1e18).toFixed(4)} testnet ETH`}
+        </button>
+        {/* Cancelling once a transaction has actually been sent wouldn't
+            stop it on-chain, so the option disappears once txHash exists. */}
+        {!txHash && (
+          <button
+            onClick={cancel}
+            className="text-xs text-muted underline hover:text-ink"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
       <p className="text-xs text-muted">
         Connected as <span className="font-mono">{address}</span>
       </p>
@@ -319,6 +357,18 @@ export function LiveBetPanel({
     }
   }
 
+  // Drops back to the original stake/payment-method screen as if this
+  // attempt never happened. The backend bet (if any) is left as-is --
+  // resumed or replaced the next time the user submits, same as any retry.
+  function cancelPayment() {
+    setLiveBetId(null);
+    setStatus(null);
+    setPaymentUrl(null);
+    setTestnetPayment(null);
+    setLockedOdds(null);
+    setError(null);
+  }
+
   // Same webhook-fallback poll as MatchHub's EnterContestForm.
   useEffect(() => {
     if (!liveBetId || !status || isTerminalStatus(status)) return;
@@ -362,6 +412,7 @@ export function LiveBetPanel({
           amountWei={testnetPayment.amountWei}
           chainId={testnetPayment.chainId}
           onConfirmed={() => setPlaced(true)}
+          onCancel={cancelPayment}
         />
       </div>
     );
@@ -396,14 +447,22 @@ export function LiveBetPanel({
             Locked in at {lockedOdds.toFixed(2)}x odds
           </p>
         )}
-        <a
-          href={paymentUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
-        >
-          Complete payment ↗
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={paymentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
+          >
+            Complete payment ↗
+          </a>
+          <button
+            onClick={cancelPayment}
+            className="text-xs text-muted underline hover:text-ink"
+          >
+            Cancel
+          </button>
+        </div>
         <p className="text-xs text-muted">
           Opens CoinVoyage's payment page in a new tab. This updates
           automatically once paid.

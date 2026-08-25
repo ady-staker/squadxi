@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   useAccount,
   useConnect,
+  useDisconnect,
   useChainId,
   useSwitchChain,
   useWriteContract,
@@ -11,6 +12,7 @@ import {
 } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { robinhoodChainTestnet } from "@/lib/wagmi-config";
+import { describeChainSwitchError } from "@/lib/wallet-errors";
 
 type Voucher = {
   claimId: `0x${string}`;
@@ -43,6 +45,7 @@ const CLAIM_ABI = [
 export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
   const { address, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
+  const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const [switchingChain, setSwitchingChain] = useState(false);
@@ -113,14 +116,21 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
         chainId: voucher.chainId,
       });
     } catch (err) {
-      setSwitchError(
-        err instanceof Error
-          ? err.message
-          : "Failed to switch to Robinhood Chain testnet.",
-      );
+      setSwitchError(describeChainSwitchError(err));
     } finally {
       setSwitchingChain(false);
     }
+  }
+
+  // Fully tears down this attempt -- disconnects the wallet (so a retry
+  // starts from "Connect wallet" instead of silently reusing this session,
+  // letting a different wallet/account be picked) and drops the voucher so
+  // the flow restarts from "Get claim voucher".
+  function cancel() {
+    disconnect();
+    setVoucher(null);
+    setVoucherError(null);
+    setSwitchError(null);
   }
 
   async function confirmOnServer(hash: `0x${string}`) {
@@ -192,26 +202,30 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
         <p className="mb-4 text-sm text-muted">
           Switch your wallet to Robinhood Chain testnet to continue.
         </p>
-        <button
-          onClick={async () => {
-            setSwitchingChain(true);
-            setSwitchError(null);
-            try {
-              await switchChainAsync({ chainId: robinhoodChainTestnet.id });
-            } catch (err) {
-              setSwitchError(
-                err instanceof Error
-                  ? err.message
-                  : "Failed to switch to Robinhood Chain testnet.",
-              );
-            } finally {
-              setSwitchingChain(false);
-            }
-          }}
-          className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark"
-        >
-          Switch network
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setSwitchingChain(true);
+              setSwitchError(null);
+              try {
+                await switchChainAsync({ chainId: robinhoodChainTestnet.id });
+              } catch (err) {
+                setSwitchError(describeChainSwitchError(err));
+              } finally {
+                setSwitchingChain(false);
+              }
+            }}
+            className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark"
+          >
+            Switch network
+          </button>
+          <button
+            onClick={cancel}
+            className="text-xs text-muted underline hover:text-ink"
+          >
+            Cancel
+          </button>
+        </div>
         {switchError && <p className="mt-2 text-xs text-loss">{switchError}</p>}
       </div>
     );
@@ -224,13 +238,21 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
       </p>
 
       {!voucher ? (
-        <button
-          onClick={requestVoucher}
-          disabled={requesting}
-          className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
-        >
-          {requesting ? "…" : "Get claim voucher"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={requestVoucher}
+            disabled={requesting}
+            className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
+          >
+            {requesting ? "…" : "Get claim voucher"}
+          </button>
+          <button
+            onClick={cancel}
+            className="text-xs text-muted underline hover:text-ink"
+          >
+            Cancel
+          </button>
+        </div>
       ) : isConfirmed && txHash ? (
         // Once the on-chain claim is mined, never offer to submit it again --
         // if the server-side confirm step fails, retry re-verifies the SAME
@@ -247,19 +269,31 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
           <p className="text-xs text-muted">Confirming your claim…</p>
         )
       ) : (
-        <button
-          onClick={submitClaim}
-          disabled={switchingChain || isPending || isConfirming}
-          className="rounded-full bg-gold px-4 py-2 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
-        >
-          {switchingChain
-            ? "Switching network…"
-            : isPending
-              ? "Confirm in wallet…"
-              : isConfirming
-                ? "Waiting for confirmation…"
-                : `Claim ${(Number(voucher.amountWei) / 1e18).toFixed(4)} ETH`}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={submitClaim}
+            disabled={switchingChain || isPending || isConfirming}
+            className="rounded-full bg-gold px-4 py-2 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
+          >
+            {switchingChain
+              ? "Switching network…"
+              : isPending
+                ? "Confirm in wallet…"
+                : isConfirming
+                  ? "Waiting for confirmation…"
+                  : `Claim ${(Number(voucher.amountWei) / 1e18).toFixed(4)} ETH`}
+          </button>
+          {/* Cancelling once a transaction has actually been sent wouldn't
+              stop it on-chain, so the option disappears once txHash exists. */}
+          {!txHash && (
+            <button
+              onClick={cancel}
+              className="text-xs text-muted underline hover:text-ink"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       )}
 
       {voucherError && <p className="text-xs text-loss">{voucherError}</p>}
