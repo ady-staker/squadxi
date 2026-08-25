@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
-
-const DEFAULT_RAKE_BPS = 1500; // 15%
-const DEFAULT_MIN_ENTRIES = 3;
+import { resolvePlatformSettings } from "@/lib/platform-settings";
 
 export async function POST(request: Request) {
   if (!isAdminAuthenticated()) {
@@ -80,26 +78,27 @@ export async function POST(request: Request) {
     );
   }
 
+  const platformDefaults = await resolvePlatformSettings();
   const finalRakeBps =
     typeof rakeBps === "number" &&
     Number.isInteger(rakeBps) &&
     rakeBps >= 0 &&
     rakeBps <= 10000
       ? rakeBps
-      : DEFAULT_RAKE_BPS;
+      : platformDefaults.defaultRakeBps;
   const finalMinEntries =
     typeof minEntriesToRun === "number" &&
     Number.isInteger(minEntriesToRun) &&
     minEntriesToRun >= 2
       ? minEntriesToRun
-      : DEFAULT_MIN_ENTRIES;
+      : platformDefaults.defaultMinEntriesToRun;
   const finalRoleBonusBps =
     typeof roleBonusBps === "number" &&
     Number.isInteger(roleBonusBps) &&
     roleBonusBps >= 0 &&
     roleBonusBps <= 10000
       ? roleBonusBps
-      : 0;
+      : platformDefaults.defaultRoleBonusBps;
 
   const prizePoolCents = Math.floor(
     entryFeeCents * maxEntries * (1 - finalRakeBps / 10000),

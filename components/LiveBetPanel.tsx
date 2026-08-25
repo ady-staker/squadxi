@@ -210,6 +210,10 @@ export function LiveBetPanel({
   odds: Odds;
 }) {
   const [sideTeamId, setSideTeamId] = useState(team1.id);
+  const [stakeBounds, setStakeBounds] = useState({
+    min: MIN_STAKE_CENTS,
+    max: MAX_STAKE_CENTS,
+  });
   const [stakeDollars, setStakeDollars] = useState(
     (MIN_STAKE_CENTS / 100).toFixed(2),
   );
@@ -232,15 +236,43 @@ export function LiveBetPanel({
   const [placed, setPlaced] = useState(false);
   const [lockedOdds, setLockedOdds] = useState<number | null>(null);
 
+  // Admin-tunable via /admin -- refresh on mount so the displayed/enforced
+  // bounds match what the server will actually accept.
+  useEffect(() => {
+    fetch("/api/live-bets/stake-bounds")
+      .then((res) => res.json())
+      .then(
+        (data: {
+          minLiveBetStakeCents: number;
+          maxLiveBetStakeCents: number;
+        }) => {
+          setStakeBounds((prev) => {
+            if (stakeDollars === (prev.min / 100).toFixed(2)) {
+              setStakeDollars((data.minLiveBetStakeCents / 100).toFixed(2));
+            }
+            return {
+              min: data.minLiveBetStakeCents,
+              max: data.maxLiveBetStakeCents,
+            };
+          });
+        },
+      )
+      .catch(() => {
+        // Keep the hardcoded fallback bounds -- the server still enforces
+        // its own current bounds regardless of what the client displays.
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function submit(paymentMethod: "coinvoyage" | "testnet_eth") {
     const stakeCents = Math.round(Number(stakeDollars) * 100);
     if (
       !Number.isInteger(stakeCents) ||
-      stakeCents < MIN_STAKE_CENTS ||
-      stakeCents > MAX_STAKE_CENTS
+      stakeCents < stakeBounds.min ||
+      stakeCents > stakeBounds.max
     ) {
       setError(
-        `Stake must be between ${formatUsd(MIN_STAKE_CENTS)} and ${formatUsd(MAX_STAKE_CENTS)}.`,
+        `Stake must be between ${formatUsd(stakeBounds.min)} and ${formatUsd(stakeBounds.max)}.`,
       );
       return;
     }
@@ -428,12 +460,12 @@ export function LiveBetPanel({
       </div>
 
       <label className="mb-1 block text-xs uppercase tracking-wide text-muted">
-        Stake ({formatUsd(MIN_STAKE_CENTS)}–{formatUsd(MAX_STAKE_CENTS)})
+        Stake ({formatUsd(stakeBounds.min)}–{formatUsd(stakeBounds.max)})
       </label>
       <input
         type="number"
-        min={MIN_STAKE_CENTS / 100}
-        max={MAX_STAKE_CENTS / 100}
+        min={stakeBounds.min / 100}
+        max={stakeBounds.max / 100}
         step="0.01"
         value={stakeDollars}
         onChange={(e) => setStakeDollars(e.target.value)}

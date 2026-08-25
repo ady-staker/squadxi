@@ -304,7 +304,25 @@ model Settings {
   robinhoodOperatorPrivateKey String? // signs claim vouchers -- never returned by any API/admin view
   robinhoodContractAddress    String?
   robinhoodCentsPerTestnetEth Int? // bookkeeping conversion rate only; no real exchange rate backs testnet ETH
-  updatedAt                   DateTime @updatedAt
+
+  // Sitewide kill switch -- blocks new contest entries, league joins, and
+  // live-bet placement (not claims/payouts, so money already owed still
+  // moves). Checked at the top of each write route via
+  // lib/platform-settings.ts.
+  bettingFrozen        Boolean @default(false)
+  bettingFrozenMessage String?
+
+  // Fallback defaults for new-contest creation (app/api/admin/contests) and
+  // live-bet stake bounds (app/api/live-bets) when the caller/admin doesn't
+  // specify its own value. Null means "use the hardcoded fallback" -- see
+  // lib/platform-settings.ts.
+  defaultRakeBps         Int?
+  defaultMinEntriesToRun Int?
+  defaultRoleBonusBps    Int?
+  minLiveBetStakeCents   Int?
+  maxLiveBetStakeCents   Int?
+
+  updatedAt DateTime @updatedAt
 }
 
 // Admin login lockout -- IP-keyed (single shared operator secret, unlike

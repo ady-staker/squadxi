@@ -18,6 +18,7 @@ import {
   centsToTestnetWei,
   resolveRobinhoodConfig,
 } from "@/lib/robinhood-chain";
+import { resolvePlatformSettings } from "@/lib/platform-settings";
 
 function isUniqueConstraintViolation(err: unknown): boolean {
   return (
@@ -34,6 +35,18 @@ export async function POST(
     return NextResponse.json(
       { error: "You must be signed in." },
       { status: 401 },
+    );
+  }
+
+  const platformSettings = await resolvePlatformSettings();
+  if (platformSettings.bettingFrozen) {
+    return NextResponse.json(
+      {
+        error:
+          platformSettings.bettingFrozenMessage ??
+          "Entries are temporarily paused. Please check back soon.",
+      },
+      { status: 503 },
     );
   }
 

@@ -8,6 +8,7 @@ import { AdminRoleBonusesPanel } from "@/components/AdminRoleBonusesPanel";
 import { AdminLiveBetsPanel } from "@/components/AdminLiveBetsPanel";
 import { AdminChatPanel } from "@/components/AdminChatPanel";
 import { AdminRobinhoodRatePanel } from "@/components/AdminRobinhoodRatePanel";
+import { AdminPlatformSettingsPanel } from "@/components/AdminPlatformSettingsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,17 @@ export default function AdminPage() {
       <div>
         <h1 className="mb-4 text-2xl font-semibold text-ink">Overview</h1>
         <AdminOverviewPanel />
+      </div>
+
+      <div>
+        <h2 className="mb-4 text-xl font-semibold text-ink">
+          Platform Settings
+        </h2>
+        <p className="mb-4 text-sm text-muted">
+          Sitewide kill switch for new money in, plus the defaults new contests
+          and live bets fall back to.
+        </p>
+        <AdminPlatformSettingsPanel />
       </div>
 
       <div>

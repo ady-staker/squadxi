@@ -10,6 +10,7 @@ import {
   isOrderStatus,
   logUnrecognizedStatus,
 } from "@/lib/order-status";
+import { resolvePlatformSettings } from "@/lib/platform-settings";
 
 function isUniqueConstraintViolation(err: unknown): boolean {
   return (
@@ -23,6 +24,18 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "You must be signed in." },
       { status: 401 },
+    );
+  }
+
+  const platformSettings = await resolvePlatformSettings();
+  if (platformSettings.bettingFrozen) {
+    return NextResponse.json(
+      {
+        error:
+          platformSettings.bettingFrozenMessage ??
+          "Joining leagues is temporarily paused. Please check back soon.",
+      },
+      { status: 503 },
     );
   }
 

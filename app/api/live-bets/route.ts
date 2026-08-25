@@ -15,7 +15,7 @@ import {
   resolveRobinhoodConfig,
 } from "@/lib/robinhood-chain";
 import { computeMatchOdds, multiplierFor } from "@/lib/live-bet-odds";
-import { MIN_STAKE_CENTS, MAX_STAKE_CENTS } from "@/lib/live-bet-constants";
+import { resolvePlatformSettings } from "@/lib/platform-settings";
 
 function isUniqueConstraintViolation(err: unknown): boolean {
   return (
@@ -29,6 +29,18 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "You must be signed in." },
       { status: 401 },
+    );
+  }
+
+  const platformSettings = await resolvePlatformSettings();
+  if (platformSettings.bettingFrozen) {
+    return NextResponse.json(
+      {
+        error:
+          platformSettings.bettingFrozenMessage ??
+          "Betting is temporarily paused. Please check back soon.",
+      },
+      { status: 503 },
     );
   }
 
@@ -55,15 +67,16 @@ export async function POST(request: Request) {
   if (typeof sideTeamId !== "string" || sideTeamId.length === 0) {
     return NextResponse.json({ error: "A side is required." }, { status: 400 });
   }
+  const { minLiveBetStakeCents, maxLiveBetStakeCents } = platformSettings;
   if (
     typeof stakeCents !== "number" ||
     !Number.isInteger(stakeCents) ||
-    stakeCents < MIN_STAKE_CENTS ||
-    stakeCents > MAX_STAKE_CENTS
+    stakeCents < minLiveBetStakeCents ||
+    stakeCents > maxLiveBetStakeCents
   ) {
     return NextResponse.json(
       {
-        error: `Stake must be between $${(MIN_STAKE_CENTS / 100).toFixed(2)} and $${(MAX_STAKE_CENTS / 100).toFixed(2)}.`,
+        error: `Stake must be between $${(minLiveBetStakeCents / 100).toFixed(2)} and $${(maxLiveBetStakeCents / 100).toFixed(2)}.`,
       },
       { status: 400 },
     );
