@@ -61,7 +61,7 @@ function TestnetPaymentFlow({
   const { address, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
   const connectedChainId = useChainId();
-  const { switchChain, switchChainAsync } = useSwitchChain();
+  const { switchChainAsync } = useSwitchChain();
   const {
     sendTransaction,
     data: txHash,
@@ -69,23 +69,23 @@ function TestnetPaymentFlow({
     error: sendError,
   } = useSendTransaction();
   const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
-  // The render gate below trusts useChainId(), but that can lag the
-  // wallet's real active chain -- a previous switchChain() can resolve in
-  // wagmi's state before the extension actually finishes, or the user can
-  // flip networks in the wallet's own UI without a chainChanged event
-  // reaching us in time. Re-confirming the chain immediately before
-  // sending (not just at render time) is what actually closes that race.
+  // useChainId() can report a stale chain persistently (not just mid-switch)
+  // for an unrecognized custom chain, so switch unconditionally and let the
+  // wallet decide rather than trusting that read.
   async function payNow() {
+    setSwitching(true);
+    setSwitchError(null);
     try {
-      if (connectedChainId !== robinhoodChainTestnet.id) {
-        setSwitching(true);
-        await switchChainAsync({ chainId: robinhoodChainTestnet.id });
-      }
+      await switchChainAsync({ chainId: robinhoodChainTestnet.id });
       sendTransaction({ to: toAddress, value: BigInt(amountWei), chainId });
-    } catch {
-      // switchChainAsync's own error surfaces nowhere else -- the button
-      // just re-offers the switch/pay flow on the next render.
+    } catch (err) {
+      setSwitchError(
+        err instanceof Error
+          ? err.message
+          : "Failed to switch to Robinhood Chain testnet.",
+      );
     } finally {
       setSwitching(false);
     }
@@ -143,14 +143,18 @@ function TestnetPaymentFlow({
     );
   }
 
-  if (connectedChainId !== robinhoodChainTestnet.id) {
+  // Render-time-only prompt; payNow() itself always re-confirms the chain.
+  if (connectedChainId !== robinhoodChainTestnet.id && !switching) {
     return (
-      <button
-        onClick={() => switchChain({ chainId: robinhoodChainTestnet.id })}
-        className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
-      >
-        Switch to Robinhood Chain testnet
-      </button>
+      <div className="flex flex-col items-end gap-1 text-right">
+        <button
+          onClick={payNow}
+          className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
+        >
+          Switch to Robinhood Chain testnet
+        </button>
+        {switchError && <p className="text-xs text-loss">{switchError}</p>}
+      </div>
     );
   }
 
@@ -172,6 +176,7 @@ function TestnetPaymentFlow({
       <p className="text-xs text-muted">
         Connected as <span className="font-mono">{address}</span>
       </p>
+      {switchError && <p className="text-xs text-loss">{switchError}</p>}
       {sendError && (
         <p className="text-xs text-loss">
           {sendError.message.includes("does not match the target chain")

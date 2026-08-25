@@ -44,8 +44,9 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
   const { address, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
   const chainId = useChainId();
-  const { switchChain, switchChainAsync } = useSwitchChain();
+  const { switchChainAsync } = useSwitchChain();
   const [switchingChain, setSwitchingChain] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
   const {
     writeContract,
     data: txHash,
@@ -84,9 +85,8 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
     }
   }
 
-  // useChainId() can lag the wallet's real active chain -- re-confirming
-  // right before sending, not just at the render-time gate below, is what
-  // actually closes that race (see LiveBetPanel.tsx's identical fix).
+  // useChainId() can be stale for an unrecognized custom chain (see
+  // LiveBetPanel.tsx's identical fix) -- switch unconditionally.
   async function submitClaim() {
     if (!voucher) return;
     if (address?.toLowerCase() !== voucher.winner.toLowerCase()) {
@@ -96,11 +96,10 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
       );
       return;
     }
+    setSwitchingChain(true);
+    setSwitchError(null);
     try {
-      if (chainId !== voucher.chainId) {
-        setSwitchingChain(true);
-        await switchChainAsync({ chainId: voucher.chainId });
-      }
+      await switchChainAsync({ chainId: voucher.chainId });
       writeContract({
         address: voucher.contractAddress,
         abi: CLAIM_ABI,
@@ -113,9 +112,12 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
         ],
         chainId: voucher.chainId,
       });
-    } catch {
-      // switchChainAsync's own error surfaces nowhere else -- the button
-      // just re-offers the switch/claim flow on the next render.
+    } catch (err) {
+      setSwitchError(
+        err instanceof Error
+          ? err.message
+          : "Failed to switch to Robinhood Chain testnet.",
+      );
     } finally {
       setSwitchingChain(false);
     }
@@ -183,18 +185,34 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
     );
   }
 
-  if (chainId !== robinhoodChainTestnet.id) {
+  // Render-time-only prompt; submitClaim() itself always re-confirms the chain.
+  if (chainId !== robinhoodChainTestnet.id && !switchingChain) {
     return (
       <div className="rounded-2xl border border-border bg-surface p-6">
         <p className="mb-4 text-sm text-muted">
           Switch your wallet to Robinhood Chain testnet to continue.
         </p>
         <button
-          onClick={() => switchChain({ chainId: robinhoodChainTestnet.id })}
+          onClick={async () => {
+            setSwitchingChain(true);
+            setSwitchError(null);
+            try {
+              await switchChainAsync({ chainId: robinhoodChainTestnet.id });
+            } catch (err) {
+              setSwitchError(
+                err instanceof Error
+                  ? err.message
+                  : "Failed to switch to Robinhood Chain testnet.",
+              );
+            } finally {
+              setSwitchingChain(false);
+            }
+          }}
           className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark"
         >
           Switch network
         </button>
+        {switchError && <p className="mt-2 text-xs text-loss">{switchError}</p>}
       </div>
     );
   }
@@ -245,6 +263,7 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
       )}
 
       {voucherError && <p className="text-xs text-loss">{voucherError}</p>}
+      {switchError && <p className="text-xs text-loss">{switchError}</p>}
       {writeError && (
         <p className="text-xs text-loss">
           {writeError.message.includes("does not match the target chain")
