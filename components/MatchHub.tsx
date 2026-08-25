@@ -5,15 +5,16 @@ import Link from "next/link";
 import {
   useAccount,
   useConnect,
+  useConnectors,
   useDisconnect,
   useChainId,
   useSwitchChain,
   useSendTransaction,
   useWaitForTransactionReceipt,
 } from "wagmi";
-import { injected } from "wagmi/connectors";
 import { robinhoodChainTestnet } from "@/lib/wagmi-config";
 import { describeChainSwitchError } from "@/lib/wallet-errors";
+import { forceWalletAccountPicker } from "@/lib/wallet-connect";
 
 type MatchInfo = {
   id: string;
@@ -64,7 +65,8 @@ function TestnetPaymentFlow({
 }) {
   const { address, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
-  const { disconnect } = useDisconnect();
+  const connectors = useConnectors();
+  const { disconnectAsync } = useDisconnect();
   const connectedChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const {
@@ -96,13 +98,22 @@ function TestnetPaymentFlow({
   const [confirmed, setConfirmed] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
-  // Fully tears down this attempt -- disconnects the wallet (so a retry
-  // starts from "Connect wallet" instead of silently reusing this session)
-  // and hands control back to the parent to drop this component and show
-  // the original payment-method buttons again.
-  function cancel() {
-    disconnect();
+  // Awaited so the parent doesn't reset until disconnect actually clears.
+  async function cancel() {
+    try {
+      await disconnectAsync();
+    } catch {
+      // Best-effort -- reset below regardless.
+    }
     onCancel();
+  }
+
+  // Forces the wallet's picker -- see lib/wallet-connect.ts.
+  async function connectWallet() {
+    const connector = connectors[0];
+    if (!connector) return;
+    await forceWalletAccountPicker(connector);
+    connect({ connector });
   }
 
   useEffect(() => {
@@ -142,7 +153,7 @@ function TestnetPaymentFlow({
       <div className="flex flex-col items-end gap-1 text-right">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => connect({ connector: injected() })}
+            onClick={connectWallet}
             className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90"
           >
             Connect wallet to pay

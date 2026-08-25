@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import {
   useAccount,
   useConnect,
+  useConnectors,
   useDisconnect,
   useChainId,
   useSwitchChain,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
-import { injected } from "wagmi/connectors";
 import { robinhoodChainTestnet } from "@/lib/wagmi-config";
 import { describeChainSwitchError } from "@/lib/wallet-errors";
+import { forceWalletAccountPicker } from "@/lib/wallet-connect";
 
 type Voucher = {
   claimId: `0x${string}`;
@@ -45,7 +46,8 @@ const CLAIM_ABI = [
 export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
   const { address, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
-  const { disconnect } = useDisconnect();
+  const connectors = useConnectors();
+  const { disconnectAsync } = useDisconnect();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const [switchingChain, setSwitchingChain] = useState(false);
@@ -122,15 +124,24 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
     }
   }
 
-  // Fully tears down this attempt -- disconnects the wallet (so a retry
-  // starts from "Connect wallet" instead of silently reusing this session,
-  // letting a different wallet/account be picked) and drops the voucher so
-  // the flow restarts from "Get claim voucher".
-  function cancel() {
-    disconnect();
+  // Awaited so state doesn't reset until disconnect actually clears.
+  async function cancel() {
+    try {
+      await disconnectAsync();
+    } catch {
+      // Best-effort -- reset below regardless.
+    }
     setVoucher(null);
     setVoucherError(null);
     setSwitchError(null);
+  }
+
+  // Forces the wallet's picker -- see lib/wallet-connect.ts.
+  async function connectWallet() {
+    const connector = connectors[0];
+    if (!connector) return;
+    await forceWalletAccountPicker(connector);
+    connect({ connector });
   }
 
   async function confirmOnServer(hash: `0x${string}`) {
@@ -178,7 +189,7 @@ export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
           Connect a wallet to claim your winnings on Robinhood Chain testnet.
         </p>
         <button
-          onClick={() => connect({ connector: injected() })}
+          onClick={connectWallet}
           className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark"
         >
           Connect wallet
