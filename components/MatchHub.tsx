@@ -61,13 +61,35 @@ function TestnetPaymentFlow({
   const { address, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
   const connectedChainId = useChainId();
-  const { switchChain } = useSwitchChain();
+  const { switchChain, switchChainAsync } = useSwitchChain();
   const {
     sendTransaction,
     data: txHash,
     isPending,
     error: sendError,
   } = useSendTransaction();
+  const [switching, setSwitching] = useState(false);
+
+  // The render gate below trusts useChainId(), but that can lag the
+  // wallet's real active chain -- a previous switchChain() can resolve in
+  // wagmi's state before the extension actually finishes, or the user can
+  // flip networks in the wallet's own UI without a chainChanged event
+  // reaching us in time. Re-confirming the chain immediately before
+  // sending (not just at render time) is what actually closes that race.
+  async function payNow() {
+    try {
+      if (connectedChainId !== robinhoodChainTestnet.id) {
+        setSwitching(true);
+        await switchChainAsync({ chainId: robinhoodChainTestnet.id });
+      }
+      sendTransaction({ to: toAddress, value: BigInt(amountWei), chainId });
+    } catch {
+      // switchChainAsync's own error surfaces nowhere else -- the button
+      // just re-offers the switch/pay flow on the next render.
+    } finally {
+      setSwitching(false);
+    }
+  }
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({ hash: txHash });
   const [confirmed, setConfirmed] = useState(false);
@@ -135,26 +157,28 @@ function TestnetPaymentFlow({
   return (
     <div className="flex flex-col items-end gap-1 text-right">
       <button
-        onClick={() =>
-          sendTransaction({
-            to: toAddress,
-            value: BigInt(amountWei),
-            chainId,
-          })
-        }
-        disabled={isPending || isConfirming}
+        onClick={payNow}
+        disabled={switching || isPending || isConfirming}
         className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
       >
-        {isPending
-          ? "Confirm in wallet…"
-          : isConfirming
-            ? "Waiting for confirmation…"
-            : `Pay ${(Number(amountWei) / 1e18).toFixed(4)} testnet ETH`}
+        {switching
+          ? "Switching network…"
+          : isPending
+            ? "Confirm in wallet…"
+            : isConfirming
+              ? "Waiting for confirmation…"
+              : `Pay ${(Number(amountWei) / 1e18).toFixed(4)} testnet ETH`}
       </button>
       <p className="text-xs text-muted">
         Connected as <span className="font-mono">{address}</span>
       </p>
-      {sendError && <p className="text-xs text-loss">{sendError.message}</p>}
+      {sendError && (
+        <p className="text-xs text-loss">
+          {sendError.message.includes("does not match the target chain")
+            ? "Your wallet switched away from Robinhood Chain testnet -- click Pay again to reconnect."
+            : sendError.message}
+        </p>
+      )}
       {confirmError && <p className="text-xs text-loss">{confirmError}</p>}
     </div>
   );

@@ -40,7 +40,7 @@ function TestnetBetPaymentFlow({
   const { address, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
   const connectedChainId = useChainId();
-  const { switchChain } = useSwitchChain();
+  const { switchChain, switchChainAsync } = useSwitchChain();
   const {
     sendTransaction,
     data: txHash,
@@ -52,6 +52,27 @@ function TestnetBetPaymentFlow({
   const [confirmed, setConfirmed] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [switchingChain, setSwitchingChain] = useState(false);
+
+  // useChainId() can lag the wallet's real active chain (a prior switch
+  // resolving in wagmi's state before the extension finishes, or the user
+  // flipping networks in the wallet's own UI with no chainChanged event
+  // reaching us yet) -- re-confirming right before sending, not just at
+  // render time, is what actually closes that race.
+  async function payNow() {
+    try {
+      if (connectedChainId !== robinhoodChainTestnet.id) {
+        setSwitchingChain(true);
+        await switchChainAsync({ chainId: robinhoodChainTestnet.id });
+      }
+      sendTransaction({ to: toAddress, value: BigInt(amountWei), chainId });
+    } catch {
+      // switchChainAsync's own error surfaces nowhere else -- the button
+      // just re-offers the switch/pay flow on the next render.
+    } finally {
+      setSwitchingChain(false);
+    }
+  }
 
   async function confirmOnServer(hash: `0x${string}`) {
     setConfirming(true);
@@ -145,22 +166,28 @@ function TestnetBetPaymentFlow({
   return (
     <div className="flex flex-col items-start gap-1">
       <button
-        onClick={() =>
-          sendTransaction({ to: toAddress, value: BigInt(amountWei), chainId })
-        }
-        disabled={isPending || isConfirming}
+        onClick={payNow}
+        disabled={switchingChain || isPending || isConfirming}
         className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
       >
-        {isPending
-          ? "Confirm in wallet…"
-          : isConfirming
-            ? "Waiting for confirmation…"
-            : `Pay ${(Number(amountWei) / 1e18).toFixed(4)} testnet ETH`}
+        {switchingChain
+          ? "Switching network…"
+          : isPending
+            ? "Confirm in wallet…"
+            : isConfirming
+              ? "Waiting for confirmation…"
+              : `Pay ${(Number(amountWei) / 1e18).toFixed(4)} testnet ETH`}
       </button>
       <p className="text-xs text-muted">
         Connected as <span className="font-mono">{address}</span>
       </p>
-      {sendError && <p className="text-xs text-loss">{sendError.message}</p>}
+      {sendError && (
+        <p className="text-xs text-loss">
+          {sendError.message.includes("does not match the target chain")
+            ? "Your wallet switched away from Robinhood Chain testnet -- click Pay again to reconnect."
+            : sendError.message}
+        </p>
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { AdminMatchesPanel } from "@/components/AdminMatchesPanel";
 import { AdminRoleBonusesPanel } from "@/components/AdminRoleBonusesPanel";
 import { AdminLiveBetsPanel } from "@/components/AdminLiveBetsPanel";
 import { AdminChatPanel } from "@/components/AdminChatPanel";
+import { AdminRobinhoodRatePanel } from "@/components/AdminRobinhoodRatePanel";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,19 @@ export default function AdminPage() {
           to run). Refunds are reviewed and triggered by hand, not automatic.
         </p>
         <AdminRefundsPanel />
+      </div>
+
+      <div>
+        <h2 className="mb-4 text-xl font-semibold text-ink">
+          Robinhood Chain Testnet Rate
+        </h2>
+        <p className="mb-4 text-sm text-muted">
+          How many dollars of entry fees / live-bet stakes one testnet ETH
+          covers -- affects contest entries, live bets, and role-bonus payouts
+          sitewide. Set this low enough that a single faucet claim (0.01 ETH on
+          the Robinhood Chain testnet faucet) can actually cover a real entry.
+        </p>
+        <AdminRobinhoodRatePanel />
       </div>
 
       <div>
