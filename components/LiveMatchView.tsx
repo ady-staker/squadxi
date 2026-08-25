@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LiveBetPanel } from "@/components/LiveBetPanel";
+import { CompletedMatchInsights } from "@/components/CompletedMatchInsights";
 
 type InningsSummary = {
   innings: number;
@@ -129,9 +130,12 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
       )}
 
       {data.match.status === "COMPLETED" && (
-        <p className="rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-semibold text-gold">
-          Match complete.
-        </p>
+        <>
+          <p className="rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-semibold text-gold">
+            Match complete.
+          </p>
+          <CompletedMatchInsights matchId={data.match.id} />
+        </>
       )}
 
       {data.match.status === "LIVE" &&

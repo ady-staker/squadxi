@@ -193,6 +193,7 @@ model ContestEntry {
   fantasyTeam       FantasyTeam @relation(fields: [fantasyTeamId], references: [id])
   entryFeeCents     Int
   coinvoyageOrderId String?
+  paymentUrl        String? // CoinVoyage checkout link, persisted so a resumed/retried entry can return the same link (CoinVoyage has no "fetch invoice by id" call to regenerate it)
   // "NONE" until a CoinVoyage order exists (free entry, or not yet paid);
   // once one does, the real CoinVoyage OrderStatus value (see
   // lib/order-status.ts) -- not a simplified mapping, so isOrderStatus()/

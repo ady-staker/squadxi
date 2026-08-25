@@ -39,6 +39,12 @@ const config: Config = {
         caution: "rgb(var(--color-caution) / <alpha-value>)",
         win: "rgb(var(--color-secondary) / <alpha-value>)",
         loss: "rgb(var(--color-loss) / <alpha-value>)",
+        // chart-a/b: validated categorical pair (dataviz skill's slots 1/2)
+        // for the two-team comparison chart -- brand primary/tertiary failed
+        // the skill's CVD lightness-band check on our dark surface, so this
+        // pair is chart-only, not reused as a UI accent.
+        "chart-a": "rgb(var(--color-chart-a) / <alpha-value>)",
+        "chart-b": "rgb(var(--color-chart-b) / <alpha-value>)",
       },
       keyframes: {
         "floodlight-drift": {

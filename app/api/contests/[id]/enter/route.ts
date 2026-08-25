@@ -103,80 +103,78 @@ export async function POST(
     );
   }
 
-  // Idempotent replay: a retried/duplicate submission returns the original
-  // entry instead of claiming a second slot / creating a second invoice.
-  if (idempotencyKey) {
-    const existing = await prisma.contestEntry.findUnique({
-      where: { idempotencyKey },
-    });
-    if (existing) {
-      if (
-        !isOrderStatus(existing.paymentStatus) ||
-        !isFailureTerminalStatus(existing.paymentStatus)
-      ) {
-        return NextResponse.json({
-          contestEntryId: existing.id,
-          orderId: existing.coinvoyageOrderId,
-          paymentStatus: existing.paymentStatus,
-        });
-      }
-      // Dead attempt (EXPIRED/FAILED/REFUNDED) -- free the key and fall
-      // through to create a fresh entry, same as the checkout-route pattern.
-      await prisma.contestEntry.update({
-        where: { id: existing.id },
-        data: { idempotencyKey: null },
-      });
-    }
-  }
-
+  // contestId+userId is unique at the DB level, so a user only ever has ONE
+  // ContestEntry row for this contest, ever -- an unpaid or dead prior
+  // attempt is resumed/switched by updating that same row, not by creating
+  // a second one (which would just violate the constraint).
   const existingEntry = await prisma.contestEntry.findUnique({
     where: { contestId_userId: { contestId, userId: user.id } },
   });
-  if (existingEntry) {
+  if (existingEntry && existingEntry.paymentStatus === "COMPLETED") {
     return NextResponse.json(
       { error: "You've already entered this contest." },
       { status: 409 },
     );
   }
+  const resumeId = existingEntry?.id ?? null;
 
-  // Atomic capacity check -- the real guard against overselling contest
-  // slots under concurrency, not any pre-check above.
-  const claim = await prisma.contest.updateMany({
-    where: {
-      id: contestId,
-      status: "OPEN",
-      currentEntries: { lt: contest.maxEntries },
-    },
-    data: { currentEntries: { increment: 1 } },
-  });
-  if (claim.count !== 1) {
-    return NextResponse.json(
-      { error: "This contest just filled up." },
-      { status: 409 },
-    );
+  // Capacity claim -- skipped when resuming an entry that already holds its
+  // slot; re-claimed if a dead (EXPIRED/FAILED/REFUNDED) prior attempt had
+  // already released it.
+  if (!resumeId || !existingEntry!.slotClaimed) {
+    const claim = await prisma.contest.updateMany({
+      where: {
+        id: contestId,
+        status: "OPEN",
+        currentEntries: { lt: contest.maxEntries },
+      },
+      data: { currentEntries: { increment: 1 } },
+    });
+    if (claim.count !== 1) {
+      return NextResponse.json(
+        { error: "This contest just filled up." },
+        { status: 409 },
+      );
+    }
+    if (resumeId) {
+      await prisma.contestEntry.update({
+        where: { id: resumeId },
+        data: { slotClaimed: true },
+      });
+    }
   }
 
   // Free entry: no CoinVoyage call needed.
   if (contest.entryFeeCents === 0) {
     try {
-      const entry = await prisma.contestEntry.create({
-        data: {
-          userId: user.id,
-          contestId,
-          fantasyTeamId,
-          entryFeeCents: 0,
-          paymentStatus: "COMPLETED",
-          slotClaimed: true,
-          idempotencyKey: idempotencyKey ?? null,
-        },
-      });
+      const entry = resumeId
+        ? await prisma.contestEntry.update({
+            where: { id: resumeId },
+            data: {
+              paymentStatus: "COMPLETED",
+              coinvoyageOrderId: null,
+              paymentUrl: null,
+              idempotencyKey: idempotencyKey ?? null,
+            },
+          })
+        : await prisma.contestEntry.create({
+            data: {
+              userId: user.id,
+              contestId,
+              fantasyTeamId,
+              entryFeeCents: 0,
+              paymentStatus: "COMPLETED",
+              slotClaimed: true,
+              idempotencyKey: idempotencyKey ?? null,
+            },
+          });
       return NextResponse.json({
         contestEntryId: entry.id,
         orderId: null,
         paymentStatus: "COMPLETED",
       });
     } catch (err) {
-      await releaseContestSlotStandalone(contestId);
+      if (!resumeId) await releaseContestSlotStandalone(contestId);
       if (isUniqueConstraintViolation(err)) {
         return NextResponse.json(
           { error: "You've already entered this contest." },
@@ -187,35 +185,39 @@ export async function POST(
     }
   }
 
-  // Robinhood Chain testnet ETH: one of the payment methods available on any
-  // paid contest (chosen by the user at entry time, not a special
-  // contest-only mode) -- bypasses CoinVoyage entirely for this entry, so
-  // the whole entry -> finalize -> role-bonus-claim loop can be exercised
-  // with no real money. The frontend pays Settings.robinhoodContractAddress
-  // directly (a plain transfer, same address the role-bonus contract itself
-  // lives at -- entry fees just top up the balance claims pay out from) and
-  // reports the txHash to /confirm-testnet-payment for verification.
+  // Robinhood Chain testnet ETH -- bypasses CoinVoyage entirely, chosen at
+  // entry time like any other paid contest's dual payment-method choice.
   if (paymentMethod === "testnet_eth") {
     const config = await resolveRobinhoodConfig();
     if (!config.contractAddress || !config.centsPerTestnetEth) {
-      await releaseContestSlotStandalone(contestId);
+      if (!resumeId) await releaseContestSlotStandalone(contestId);
       return NextResponse.json(
         { error: "Robinhood Chain isn't configured yet." },
         { status: 503 },
       );
     }
     try {
-      const entry = await prisma.contestEntry.create({
-        data: {
-          userId: user.id,
-          contestId,
-          fantasyTeamId,
-          entryFeeCents: contest.entryFeeCents,
-          paymentStatus: "AWAITING_PAYMENT",
-          slotClaimed: true,
-          idempotencyKey: idempotencyKey ?? null,
-        },
-      });
+      const entry = resumeId
+        ? await prisma.contestEntry.update({
+            where: { id: resumeId },
+            data: {
+              paymentStatus: "AWAITING_PAYMENT",
+              coinvoyageOrderId: null,
+              paymentUrl: null,
+              idempotencyKey: idempotencyKey ?? null,
+            },
+          })
+        : await prisma.contestEntry.create({
+            data: {
+              userId: user.id,
+              contestId,
+              fantasyTeamId,
+              entryFeeCents: contest.entryFeeCents,
+              paymentStatus: "AWAITING_PAYMENT",
+              slotClaimed: true,
+              idempotencyKey: idempotencyKey ?? null,
+            },
+          });
       return NextResponse.json({
         contestEntryId: entry.id,
         orderId: null,
@@ -230,7 +232,7 @@ export async function POST(
         },
       });
     } catch (err) {
-      await releaseContestSlotStandalone(contestId);
+      if (!resumeId) await releaseContestSlotStandalone(contestId);
       if (isUniqueConstraintViolation(err)) {
         return NextResponse.json(
           { error: "You've already entered this contest." },
@@ -241,12 +243,27 @@ export async function POST(
     }
   }
 
-  // Paid entry.
+  // Resuming an entry that already has a live CoinVoyage invoice on file --
+  // return the same link rather than opening a second one.
+  if (
+    resumeId &&
+    existingEntry!.coinvoyageOrderId &&
+    existingEntry!.paymentUrl
+  ) {
+    return NextResponse.json({
+      contestEntryId: existingEntry!.id,
+      orderId: existingEntry!.coinvoyageOrderId,
+      paymentUrl: existingEntry!.paymentUrl,
+      paymentStatus: existingEntry!.paymentStatus,
+    });
+  }
+
+  // Paid entry via CoinVoyage.
   let apiClient: ReturnType<typeof ApiClient>, apiSecret: string;
   try {
     ({ client: apiClient, apiSecret } = await coinvoyageCredentials());
   } catch (err) {
-    await releaseContestSlotStandalone(contestId);
+    if (!resumeId) await releaseContestSlotStandalone(contestId);
     return NextResponse.json(
       {
         error:
@@ -281,7 +298,7 @@ export async function POST(
       apiSecret,
     );
     if (error || !data || !data.order_id) {
-      await releaseContestSlotStandalone(contestId);
+      if (!resumeId) await releaseContestSlotStandalone(contestId);
       console.error(
         `createInvoice returned an error or no linked order for internalEntryId=${internalEntryId}`,
         error,
@@ -296,7 +313,7 @@ export async function POST(
     }
     invoice = data;
   } catch (err) {
-    await releaseContestSlotStandalone(contestId);
+    if (!resumeId) await releaseContestSlotStandalone(contestId);
     console.error(
       `CoinVoyage createInvoice threw for internalEntryId=${internalEntryId}`,
       err,
@@ -323,20 +340,31 @@ export async function POST(
 
   let entry;
   try {
-    entry = await prisma.contestEntry.create({
-      data: {
-        userId: user.id,
-        contestId,
-        fantasyTeamId,
-        entryFeeCents: contest.entryFeeCents,
-        coinvoyageOrderId: invoice.order_id as string,
-        paymentStatus: initialStatus,
-        slotClaimed: true,
-        idempotencyKey: idempotencyKey ?? null,
-      },
-    });
+    entry = resumeId
+      ? await prisma.contestEntry.update({
+          where: { id: resumeId },
+          data: {
+            coinvoyageOrderId: invoice.order_id as string,
+            paymentUrl: invoice.payment_url,
+            paymentStatus: initialStatus,
+            idempotencyKey: idempotencyKey ?? null,
+          },
+        })
+      : await prisma.contestEntry.create({
+          data: {
+            userId: user.id,
+            contestId,
+            fantasyTeamId,
+            entryFeeCents: contest.entryFeeCents,
+            coinvoyageOrderId: invoice.order_id as string,
+            paymentUrl: invoice.payment_url,
+            paymentStatus: initialStatus,
+            slotClaimed: true,
+            idempotencyKey: idempotencyKey ?? null,
+          },
+        });
   } catch (err) {
-    await releaseContestSlotStandalone(contestId);
+    if (!resumeId) await releaseContestSlotStandalone(contestId);
 
     if (isUniqueConstraintViolation(err) && idempotencyKey) {
       const winner = await prisma.contestEntry.findUnique({
@@ -351,6 +379,7 @@ export async function POST(
         return NextResponse.json({
           contestEntryId: winner.id,
           orderId: winner.coinvoyageOrderId,
+          paymentUrl: winner.paymentUrl,
           paymentStatus: winner.paymentStatus,
         });
       }
