@@ -30,6 +30,7 @@ function fakeWallet(random: () => number): string {
 }
 
 export type MatchInsights = {
+  isSample: boolean;
   totalEntries: number;
   totalBets: number;
   totalWageredCents: number;
@@ -49,14 +50,23 @@ export type MatchInsights = {
     isReal: boolean;
   } | null;
   prizePoolCents: number;
-  winnerWallet: string;
-  winnerPrizeCents: number;
+  winner: {
+    displayName: string;
+    walletAddress: string | null;
+    prizeCents: number;
+  } | null;
 };
 
-/** Real data where a completed match actually has it (top performer, via
- *  PlayerPerformance); deterministic seeded sample numbers everywhere else,
- *  since this app has no real usage yet -- never written to the DB, purely
- *  computed for display. */
+/** Real data whenever a completed match actually has paid entries or bets on
+ *  it -- entry/bet counts, prize pool, betting split, and pick percentages
+ *  are all computed from real rows, and isSample is false. Only a match
+ *  with genuinely zero real activity falls back to deterministic seeded
+ *  sample numbers (isSample:true) so there's still something to look at --
+ *  it's never a MIX of real and fake within one match, which would be
+ *  impossible to label honestly per-field. topPerformer keeps its own
+ *  independent isReal flag either way, since real PlayerPerformance data
+ *  can exist regardless of whether anyone actually entered/bet on the
+ *  match. */
 export async function getMatchInsights(
   matchId: string,
 ): Promise<MatchInsights | null> {
@@ -111,6 +121,110 @@ export async function getMatchInsights(
     };
   }
 
+  const [realEntryCount, realBetCount] = await Promise.all([
+    prisma.contestEntry.count({
+      where: { paymentStatus: "COMPLETED", fantasyTeam: { matchId } },
+    }),
+    prisma.liveBet.count({ where: { matchId, status: "COMPLETED" } }),
+  ]);
+  const isSample = realEntryCount === 0 && realBetCount === 0;
+
+  if (!isSample) {
+    const [bets, teams, finalizedContests] = await Promise.all([
+      prisma.liveBet.findMany({
+        where: { matchId, status: "COMPLETED" },
+        select: { sideTeamId: true, stakeCents: true },
+      }),
+      prisma.fantasyTeam.findMany({
+        where: { matchId },
+        select: { id: true },
+      }),
+      prisma.contest.findMany({
+        where: { matchId, status: "FINALIZED" },
+        select: { id: true, prizePoolCents: true },
+      }),
+    ]);
+
+    const teamBetSplit = [team1, team2].map((t) => ({
+      teamId: t.id,
+      shortName: t.shortName,
+      betCount: bets.filter((b) => b.sideTeamId === t.id).length,
+    }));
+    const totalWageredCents = bets.reduce((sum, b) => sum + b.stakeCents, 0);
+    const prizePoolCents = finalizedContests.reduce(
+      (sum, c) => sum + c.prizePoolCents,
+      0,
+    );
+
+    const teamIds = teams.map((t) => t.id);
+    const pickCounts =
+      teamIds.length > 0
+        ? await prisma.fantasyTeamPlayer.groupBy({
+            by: ["playerId"],
+            where: { fantasyTeamId: { in: teamIds } },
+            _count: { playerId: true },
+            orderBy: { _count: { playerId: "desc" } },
+            take: 3,
+          })
+        : [];
+    const playerById = new Map(allPlayers.map((p) => [p.id, p]));
+    const topPlayers = pickCounts
+      .map((row) => {
+        const player = playerById.get(row.playerId);
+        if (!player) return null;
+        return {
+          id: player.id,
+          name: player.name,
+          role: player.role,
+          teamShortName: teamById.get(player.teamId)?.shortName ?? "?",
+          pickPct: Math.round((row._count.playerId / teams.length) * 100),
+        };
+      })
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+
+    // "The" winner across every finalized contest on this match -- highest
+    // prize if more than one contest ran. walletAddress stays null (shown
+    // as payout-pending, not fabricated) until the winner actually submits
+    // one -- see the payout-wallet-collection gap this points at.
+    const topEntry =
+      finalizedContests.length > 0
+        ? await prisma.contestEntry.findFirst({
+            where: {
+              rank: 1,
+              prizeCents: { gt: 0 },
+              contestId: { in: finalizedContests.map((c) => c.id) },
+            },
+            orderBy: { prizeCents: "desc" },
+          })
+        : null;
+    let winner: MatchInsights["winner"] = null;
+    if (topEntry) {
+      const [winnerUser, payout] = await Promise.all([
+        prisma.user.findUnique({ where: { id: topEntry.userId } }),
+        prisma.payout.findUnique({
+          where: { contestEntryId: topEntry.id },
+        }),
+      ]);
+      winner = {
+        displayName: winnerUser?.displayName ?? "Unknown",
+        walletAddress: payout?.walletAddress ?? null,
+        prizeCents: topEntry.prizeCents,
+      };
+    }
+
+    return {
+      isSample: false,
+      totalEntries: realEntryCount,
+      totalBets: realBetCount,
+      totalWageredCents,
+      teamBetSplit,
+      topPlayers,
+      topPerformer,
+      prizePoolCents,
+      winner,
+    };
+  }
+
   // Top 3 picked players: ranked by real skill (a reasonable proxy for
   // popularity) with a seeded pick-percentage spread.
   const ranked = [...allPlayers].sort(
@@ -149,6 +263,7 @@ export async function getMatchInsights(
   const winnerPrizeCents = Math.round(prizePoolCents * (0.4 + random() * 0.15));
 
   return {
+    isSample: true,
     totalEntries,
     totalBets,
     totalWageredCents,
@@ -156,7 +271,10 @@ export async function getMatchInsights(
     topPlayers,
     topPerformer,
     prizePoolCents,
-    winnerWallet: fakeWallet(random),
-    winnerPrizeCents,
+    winner: {
+      displayName: "Sample winner",
+      walletAddress: fakeWallet(random),
+      prizeCents: winnerPrizeCents,
+    },
   };
 }

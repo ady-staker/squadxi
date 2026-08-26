@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 type Insights = {
+  isSample: boolean;
   totalEntries: number;
   totalBets: number;
   totalWageredCents: number;
@@ -19,10 +20,14 @@ type Insights = {
     teamShortName: string;
     role: string;
     fantasyPoints: number;
+    isReal: boolean;
   } | null;
   prizePoolCents: number;
-  winnerWallet: string;
-  winnerPrizeCents: number;
+  winner: {
+    displayName: string;
+    walletAddress: string | null;
+    prizeCents: number;
+  } | null;
 };
 
 function usd(cents: number): string {
@@ -125,9 +130,19 @@ export function CompletedMatchInsights({ matchId }: { matchId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-        Match Insights
-      </h2>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          Match Insights
+        </h2>
+        {insights.isSample && (
+          <span
+            title="This match had no real entries or bets, so these numbers are illustrative, not actual activity."
+            className="rounded-full border border-caution/40 bg-caution/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-caution"
+          >
+            Sample data
+          </span>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Total bets" value={String(insights.totalBets)} />
@@ -160,9 +175,16 @@ export function CompletedMatchInsights({ matchId }: { matchId: string }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {insights.topPerformer && (
           <div className="rounded-xl border border-border bg-surface p-5">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-              Top performer
-            </p>
+            <div className="mb-2 flex items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Top performer
+              </p>
+              {!insights.topPerformer.isReal && (
+                <span className="rounded-full border border-caution/40 bg-caution/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-caution">
+                  Estimated
+                </span>
+              )}
+            </div>
             <p className="font-display text-xl font-bold text-ink">
               {insights.topPerformer.name}
             </p>
@@ -179,21 +201,28 @@ export function CompletedMatchInsights({ matchId }: { matchId: string }) {
           </div>
         )}
 
-        <div className="rounded-xl border border-gold/30 bg-gold/5 p-5">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-lg">🏆</span>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gold">
-              Contest winner
+        {insights.winner && (
+          <div className="rounded-xl border border-gold/30 bg-gold/5 p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-lg">🏆</span>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gold">
+                Contest winner
+              </p>
+            </div>
+            <p className="font-display text-lg font-bold text-ink">
+              {insights.winner.displayName}
+            </p>
+            <p className="mt-1 font-mono text-xs text-muted">
+              {insights.winner.walletAddress
+                ? shortWallet(insights.winner.walletAddress)
+                : "Payout wallet pending"}
+            </p>
+            <p className="mt-3 text-2xl font-bold text-gold">
+              {usd(insights.winner.prizeCents)}
+              <span className="ml-1 text-xs font-normal text-muted">won</span>
             </p>
           </div>
-          <p className="font-mono text-lg font-bold text-ink">
-            {shortWallet(insights.winnerWallet)}
-          </p>
-          <p className="mt-3 text-2xl font-bold text-gold">
-            {usd(insights.winnerPrizeCents)}
-            <span className="ml-1 text-xs font-normal text-muted">won</span>
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );

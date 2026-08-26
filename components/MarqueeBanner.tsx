@@ -5,10 +5,11 @@ import { CloseIcon } from "@/components/icons";
 
 const STORAGE_KEY = "squadxi-marquee-dismissed";
 
+// Every line here must be a real, shipped feature -- this banner is
+// user-facing on a real-money product, not a place for placeholder copy.
 const OFFERS = [
-  "New here? Get a welcome credit boost on your first contest entry.",
   "Live match-winner betting is now open -- back a side, watch it settle in real time.",
-  "Refer a friend and you both get a bonus when their first team enters a contest.",
+  "Pay entry fees and stakes with real crypto, or risk-free Robinhood Chain testnet ETH.",
   "Role bonuses for the best WK/BAT/BOWL/AR pick pay out on-chain automatically.",
 ];
 
