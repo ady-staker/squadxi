@@ -33,6 +33,7 @@ type Contest = {
   currentEntries: number;
   prizePoolCents: number;
   status: string;
+  myEntry: { id: string; paymentStatus: string } | null;
 };
 type FantasyTeam = { id: string; name: string; totalCredits: string };
 
@@ -325,6 +326,21 @@ function EnterContestForm({
     }, STATUS_POLL_MS);
     return () => clearInterval(interval);
   }, [entryId, paymentStatus, onEntered]);
+
+  // A completed entry from a prior visit/session -- checked ahead of the
+  // in-session flows below so a fresh mount shows status immediately
+  // instead of the entry buttons again.
+  if (
+    !testnetPayment &&
+    !paymentUrl &&
+    contest.myEntry?.paymentStatus === "COMPLETED"
+  ) {
+    return (
+      <span className="rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent">
+        ✓ You're entered
+      </span>
+    );
+  }
 
   if (testnetPayment && entryId) {
     return (

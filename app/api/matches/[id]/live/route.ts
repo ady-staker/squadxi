@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { summarizeInnings } from "@/lib/live-advance";
 import { computeMatchOdds } from "@/lib/live-bet-odds";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(
   request: Request,
@@ -70,7 +71,29 @@ export async function GET(
     .sort((a, b) => b.totalPoints - a.totalPoints)
     .map((row, i) => ({ ...row, rank: i + 1 }));
 
+  // Lets LiveBetPanel show "your bets on this match" on load, not just
+  // right after a fresh submit in the same page session.
+  const user = await getCurrentUser();
+  const myBets = user
+    ? await prisma.liveBet.findMany({
+        where: { matchId: match.id, userId: user.id, status: "COMPLETED" },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          sideTeamId: true,
+          stakeCents: true,
+          oddsMultiplier: true,
+        },
+      })
+    : [];
+
   return NextResponse.json({
+    myBets: myBets.map((b) => ({
+      id: b.id,
+      sideTeamId: b.sideTeamId,
+      stakeCents: b.stakeCents,
+      oddsMultiplier: b.oddsMultiplier.toString(),
+    })),
     match: {
       id: match.id,
       status: match.status,

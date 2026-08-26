@@ -247,16 +247,25 @@ function TestnetBetPaymentFlow({
   );
 }
 
+type ExistingBet = {
+  id: string;
+  sideTeamId: string;
+  stakeCents: number;
+  oddsMultiplier: string;
+};
+
 export function LiveBetPanel({
   matchId,
   team1,
   team2,
   odds,
+  existingBets,
 }: {
   matchId: string;
   team1: Team;
   team2: Team;
   odds: Odds;
+  existingBets: ExistingBet[];
 }) {
   const [sideTeamId, setSideTeamId] = useState(team1.id);
   const [stakeBounds, setStakeBounds] = useState({
@@ -497,6 +506,20 @@ export function LiveBetPanel({
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
+      {existingBets.length > 0 && (
+        <div className="mb-4 flex flex-col gap-1.5 rounded-xl border border-accent/30 bg-accent/5 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            Your bets on this match
+          </p>
+          {existingBets.map((b) => (
+            <p key={b.id} className="text-xs text-ink">
+              {formatUsd(b.stakeCents)} on{" "}
+              {b.sideTeamId === team1.id ? team1.shortName : team2.shortName} @{" "}
+              {Number(b.oddsMultiplier).toFixed(2)}x
+            </p>
+          ))}
+        </div>
+      )}
       <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
         Bet on this match
       </h3>

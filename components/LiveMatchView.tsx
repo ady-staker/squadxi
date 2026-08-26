@@ -18,7 +18,14 @@ type LeaderboardRow = {
   rank: number;
 };
 type Team = { id: string; shortName: string; name: string };
+type MyBet = {
+  id: string;
+  sideTeamId: string;
+  stakeCents: number;
+  oddsMultiplier: string;
+};
 type LiveData = {
+  myBets: MyBet[];
   match: {
     id: string;
     status: string;
@@ -148,6 +155,7 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
             team1={data.match.team1}
             team2={data.match.team2}
             odds={data.match.odds}
+            existingBets={data.myBets}
           />
         )}
 
