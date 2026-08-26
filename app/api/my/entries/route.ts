@@ -71,6 +71,11 @@ export async function GET() {
         // lib/contest-finalization.ts. A CoinVoyage-paid win has no
         // self-serve claim; it's in the admin-run manual Payout queue.
         prizeClaimPending: Boolean(e.claimId) && !e.claimedAt,
+        // True when this contest settled via the under-minimum captain's-
+        // team fallback (lib/contest-finalization.ts) rather than fantasy-
+        // points ranking -- lets the dashboard explain a prize/loss that
+        // isn't tied to a rank.
+        fallbackSettled: contest?.fallbackSettled ?? false,
       };
     }),
   });

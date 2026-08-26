@@ -156,6 +156,13 @@ model Contest {
   roleBonusBps    Int      @default(0) // bps of prizePoolCents carved out for the 4 Robinhood Chain role bonuses; 0 = feature off, zero behavior change
   status          String   @default("OPEN") // OPEN | LOCKED | LIVE | COMPLETED | FINALIZED | VOIDED
   createdAt       DateTime @default(now())
+
+  // True when this contest FINALIZED with fewer paid entries than
+  // minEntriesToRun (but at least one) -- see lib/contest-finalization.ts's
+  // settleContestByFallback. Entries aren't ranked by fantasy points in
+  // this case; each is settled as a captain's-team win/lose bet instead, at
+  // odds from the same engine live match-winner betting already uses.
+  fallbackSettled Boolean  @default(false)
 }
 
 // --- Fantasy teams -----------------------------------------------------------

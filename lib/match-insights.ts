@@ -186,11 +186,11 @@ export async function getMatchInsights(
     // prize if more than one contest ran. walletAddress stays null (shown
     // as payout-pending, not fabricated) until the winner actually submits
     // one -- see the payout-wallet-collection gap this points at.
+    // No rank filter -- a fallback win never gets a rank; prizeCents>0 alone identifies a winner.
     const topEntry =
       finalizedContests.length > 0
         ? await prisma.contestEntry.findFirst({
             where: {
-              rank: 1,
               prizeCents: { gt: 0 },
               contestId: { in: finalizedContests.map((c) => c.id) },
             },

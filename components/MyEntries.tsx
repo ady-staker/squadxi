@@ -17,6 +17,7 @@ type Entry = {
   prizeCents: number;
   roleBonus: { claimId: string; role: string; status: string } | null;
   prizeClaimPending: boolean;
+  fallbackSettled: boolean;
 };
 
 function paymentLabel(status: string): string {
@@ -71,6 +72,13 @@ export function MyEntries() {
                 </span>
               </p>
               <p className="text-xs text-muted">{e.fantasyTeamName}</p>
+              {e.fallbackSettled && (
+                <p className="mt-1 text-xs text-muted">
+                  {e.prizeCents > 0
+                    ? "Didn't reach its entry minimum — settled by your captain's team winning, not fantasy points."
+                    : "Didn't reach its entry minimum — settled by your captain's team losing, not fantasy points."}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-4 text-right">
               <div>

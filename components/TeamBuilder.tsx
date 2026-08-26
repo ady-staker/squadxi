@@ -237,6 +237,14 @@ export function TeamBuilder({ matchId }: { matchId: string }) {
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
             Captain &amp; Vice-Captain
           </h2>
+          <p className="mb-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-xs text-muted">
+            Captain scores 2x and vice-captain 1.5x whenever a contest runs
+            normally. If a contest you enter doesn&apos;t reach its minimum
+            entry count, it won&apos;t be voided -- instead, every paid entry is
+            settled as a bet on the captain&apos;s real-world team: a win pays
+            out at odds based on both teams&apos; strength, a loss forfeits the
+            entry fee. Choose your captain with both outcomes in mind.
+          </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {selected.map((id) => {
               const p = players.find((pl) => pl.id === id);

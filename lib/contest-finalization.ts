@@ -1,10 +1,12 @@
 import { keccak256, stringToHex } from "viem";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { applyMultiplier, captaincyFor } from "@/lib/scoring";
 import {
   centsToTestnetWei,
   resolveRobinhoodConfig,
 } from "@/lib/robinhood-chain";
+import { computeMatchOdds, multiplierFor } from "@/lib/live-bet-odds";
 
 const PRIZE_SPLIT = [0.5, 0.3, 0.2]; // top 3: 50/30/20% of the prize pool
 
@@ -211,33 +213,102 @@ async function computeRoleBonuses(
   return roleBonusPoolCents;
 }
 
+type FallbackEntry = {
+  id: string;
+  entryFeeCents: number;
+  testnetPaymentTxHash: string | null;
+  claimId: string | null;
+  fantasyTeam: { captainId: string };
+};
+
+// Settles a contest that locked in below minEntriesToRun but has at least
+// one paid entry, instead of voiding it. Not scored by fantasy points --
+// each entry bets on its own captain's real team, at odds from the same
+// engine live match-winner betting already uses. Disclosed to users at
+// team-building time (components/TeamBuilder.tsx).
+async function settleContestByFallback(
+  contest: { id: string },
+  paidEntries: FallbackEntry[],
+  winnerTeamId: string,
+  team1Id: string,
+  team2Id: string,
+  centsPerTestnetEth: number | null,
+): Promise<void> {
+  const odds = await computeMatchOdds(team1Id, team2Id);
+  const captainIds = [
+    ...new Set(paidEntries.map((e) => e.fantasyTeam.captainId)),
+  ];
+  const captains = await prisma.player.findMany({
+    where: { id: { in: captainIds } },
+    select: { id: true, teamId: true },
+  });
+  const captainTeamById = new Map(captains.map((p) => [p.id, p.teamId]));
+
+  for (const entry of paidEntries) {
+    const captainTeamId = captainTeamById.get(entry.fantasyTeam.captainId);
+    const won = captainTeamId === winnerTeamId;
+    const prizeCents = won
+      ? new Prisma.Decimal(multiplierFor(odds, captainTeamId!, team1Id))
+          .times(entry.entryFeeCents)
+          .floor()
+          .toNumber()
+      : 0;
+
+    await prisma.contestEntry.update({
+      where: { id: entry.id },
+      data: { rank: null, prizeCents },
+    });
+
+    if (prizeCents > 0) {
+      if (entry.testnetPaymentTxHash && centsPerTestnetEth) {
+        if (!entry.claimId) {
+          await prisma.contestEntry.update({
+            where: { id: entry.id },
+            data: {
+              claimId: contestPrizeClaimId(entry.id),
+              claimAmountWei: centsToTestnetWei(
+                prizeCents,
+                centsPerTestnetEth,
+              ).toString(),
+            },
+          });
+        }
+      } else {
+        await prisma.payout.upsert({
+          where: { contestEntryId: entry.id },
+          create: {
+            contestEntryId: entry.id,
+            amountOwedCents: prizeCents,
+            chain: null,
+            token: null,
+            walletAddress: null,
+          },
+          update: {},
+        });
+      }
+    }
+  }
+
+  await prisma.contest.update({
+    where: { id: contest.id },
+    data: { status: "FINALIZED", fallbackSettled: true },
+  });
+}
+
 /**
  * Finalizes every Contest tied to a match once it's COMPLETED. Only entries
- * with paymentStatus "COMPLETED" (or free entries, entryFeeCents 0, which
- * are marked COMPLETED immediately at entry time) are ever eligible here --
- * an entry that claimed a slot but never actually finished paying (still
- * PENDING/AWAITING_PAYMENT/etc. when the match ends) is treated as absent:
- * excluded from both the minEntriesToRun headcount and the ranking/prize
- * pool. It was never actually charged, so there's nothing to refund either --
- * it simply never became a real contestant. This matters for real money:
- * ranking by claimed-slot count alone (Contest.currentEntries) would let an
- * unpaid entry both inflate a contest past its minimum and potentially win
- * a real prize it never paid into.
+ * with paymentStatus "COMPLETED" are ever eligible -- an unpaid slot-holder
+ * is excluded from both the minEntriesToRun headcount and the prize pool,
+ * and gets nothing refunded since it was never actually charged.
  *
- * - Below minEntriesToRun *paid* entries: VOIDED. Paid entries are
- *   deliberately NOT auto-refunded (locked decision: refunds are
- *   admin-reviewed, not automatic -- CoinVoyage's refund API has never been
- *   exercised for real anywhere in this workspace). The admin refund queue
- *   (Phase 8) finds these by querying VOIDED contests' COMPLETED-payment
- *   entries directly -- no separate "pending refund" row needed, that
- *   combination of contest status + entry paymentStatus already identifies
- *   exactly what needs review.
- * - Otherwise: FINALIZED. Ranks every paid entry, splits the prize pool
- *   50/30/20 to the top 3, creates a Payout row per prize-winning entry
- *   (skipped for prizeCents === 0, i.e. every entry outside the top 3).
+ * - Zero paid entries: VOIDED, nothing to resolve. Paid entries elsewhere
+ *   are never auto-refunded (admin-reviewed queue instead).
+ * - 1+ paid entries below minEntriesToRun: FINALIZED via
+ *   settleContestByFallback above, never voided once real money is in play.
+ * - minEntriesToRun or more: FINALIZED, ranked by fantasy points, 50/30/20
+ *   prize split to the top 3.
  *
- * Leagues have no rake/prize-pool structure in this app (creator-defined,
- * ad-hoc) -- they're just ranked and marked COMPLETED for a results view.
+ * Leagues have no rake/prize-pool structure -- just ranked for a results view.
  */
 export async function finalizeMatchContests(matchId: string): Promise<void> {
   const contests = await prisma.contest.findMany({
@@ -246,7 +317,10 @@ export async function finalizeMatchContests(matchId: string): Promise<void> {
   // Resolved once for the whole batch -- a testnet-ETH winner's prize
   // converts at whatever rate is live when this match finalizes, same as
   // computeRoleBonuses' own rate read below.
-  const { centsPerTestnetEth } = await resolveRobinhoodConfig();
+  const [{ centsPerTestnetEth }, match] = await Promise.all([
+    resolveRobinhoodConfig(),
+    prisma.match.findUniqueOrThrow({ where: { id: matchId } }),
+  ]);
 
   for (const contest of contests) {
     const paidEntries = await prisma.contestEntry.findMany({
@@ -254,11 +328,24 @@ export async function finalizeMatchContests(matchId: string): Promise<void> {
       include: { fantasyTeam: { include: { players: true } } },
     });
 
-    if (paidEntries.length < contest.minEntriesToRun) {
+    if (paidEntries.length === 0) {
       await prisma.contest.update({
         where: { id: contest.id },
         data: { status: "VOIDED" },
       });
+      continue;
+    }
+
+    if (paidEntries.length < contest.minEntriesToRun) {
+      // winnerTeamId is always set here -- finalize only runs on COMPLETED.
+      await settleContestByFallback(
+        contest,
+        paidEntries,
+        match.winnerTeamId!,
+        match.team1Id,
+        match.team2Id,
+        centsPerTestnetEth,
+      );
       continue;
     }
 
