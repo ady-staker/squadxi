@@ -46,6 +46,14 @@ model Team {
   shortName String
   logo      String
   createdAt DateTime @default(now())
+
+  // The real-world squad's captain/vice-captain -- plain Player id strings,
+  // same convention as FantasyTeam.captainId/viceCaptainId (no Prisma
+  // relation directive either, for the same reason: this is descriptive
+  // display data, not something queried through). Nullable so a team
+  // seeded before this existed doesn't need a backfill to stay valid.
+  captainPlayerId      String?
+  viceCaptainPlayerId  String?
 }
 
 model Player {

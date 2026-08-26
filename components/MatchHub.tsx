@@ -15,6 +15,7 @@ import {
 import { robinhoodChainTestnet } from "@/lib/wagmi-config";
 import { describeChainSwitchError } from "@/lib/wallet-errors";
 import { forceWalletAccountPicker } from "@/lib/wallet-connect";
+import { EnteredMatchOverview } from "@/components/EnteredMatchOverview";
 
 type MatchInfo = {
   id: string;
@@ -600,6 +601,8 @@ export function MatchHub({ matchId }: { matchId: string }) {
         </h1>
         <p className="text-sm text-muted">{match.venue}</p>
       </div>
+
+      <EnteredMatchOverview matchId={matchId} />
 
       <div className="rounded-2xl border border-border bg-surface p-6">
         {hasTeams ? (

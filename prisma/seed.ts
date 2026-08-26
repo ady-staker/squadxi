@@ -134,6 +134,37 @@ async function main() {
     squadsByTeam.set(team.id, squad);
   }
 
+  console.log("Setting real captains/vice-captains...");
+  // Each squad's actual real-world captain and vice-captain at some point
+  // in their international career, matched by name -- not simulated.
+  const REAL_LEADERSHIP: Record<string, { captain: string; vc: string }> = {
+    India: { captain: "RG Sharma", vc: "HH Pandya" },
+    Australia: { captain: "AJ Finch", vc: "PJ Cummins" },
+    England: { captain: "JC Buttler", vc: "MM Ali" },
+    Pakistan: { captain: "Babar Azam", vc: "Shadab Khan" },
+    "South Africa": { captain: "F du Plessis", vc: "AB de Villiers" },
+    "New Zealand": { captain: "KS Williamson", vc: "TG Southee" },
+  };
+  for (const { row: team, source } of teamRows) {
+    const leadership = REAL_LEADERSHIP[source.name];
+    const squad = squadsByTeam.get(team.id) ?? [];
+    const captain = leadership
+      ? squad.find((p) => p.name === leadership.captain)
+      : undefined;
+    const viceCaptain = leadership
+      ? squad.find((p) => p.name === leadership.vc)
+      : undefined;
+    if (captain && viceCaptain) {
+      await prisma.team.update({
+        where: { id: team.id },
+        data: {
+          captainPlayerId: captain.id,
+          viceCaptainPlayerId: viceCaptain.id,
+        },
+      });
+    }
+  }
+
   console.log("Seeding matches...");
   const now = Date.now();
   const DAY = 24 * 60 * 60 * 1000;

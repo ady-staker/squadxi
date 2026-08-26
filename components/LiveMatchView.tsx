@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { LiveBetPanel } from "@/components/LiveBetPanel";
 import { CompletedMatchInsights } from "@/components/CompletedMatchInsights";
+import { EnteredMatchOverview } from "@/components/EnteredMatchOverview";
 
 type InningsSummary = {
   innings: number;
@@ -112,6 +113,8 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
           />
         </div>
       </div>
+
+      <EnteredMatchOverview matchId={matchId} />
 
       {data.innings.length === 0 ? (
         <p className="text-sm text-muted">No play revealed yet.</p>
