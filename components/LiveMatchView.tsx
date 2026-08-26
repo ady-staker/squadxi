@@ -138,7 +138,7 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
 
       {data.match.status === "COMPLETED" && (
         <>
-          <p className="rounded-xl border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-semibold text-gold">
+          <p className="rounded-xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-ink">
             Match complete.
           </p>
           <CompletedMatchInsights matchId={data.match.id} />

@@ -5,6 +5,11 @@ import Link from "next/link";
 import { TeamCrest } from "@/components/home/TeamCrest";
 
 type Team = { id: string; name: string; shortName: string; logo: string };
+type ContestSummary = {
+  topPrizePoolCents: number;
+  currentEntries: number;
+  maxEntries: number;
+};
 type MatchRow = {
   id: string;
   status: string;
@@ -13,6 +18,7 @@ type MatchRow = {
   scheduledAt: string;
   team1: Team | null;
   team2: Team | null;
+  contestSummary: ContestSummary | null;
 };
 
 function formatScheduledAt(iso: string): string {
@@ -22,6 +28,10 @@ function formatScheduledAt(iso: string): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatUsd(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
 }
 
 const STATUS_ORDER = ["LIVE", "UPCOMING", "COMPLETED"];
@@ -113,6 +123,18 @@ export function MatchList() {
                       {m.format} &middot; {m.venue} &middot;{" "}
                       {formatScheduledAt(m.scheduledAt)}
                     </p>
+                    {m.contestSummary && (
+                      <p className="mt-1 text-xs">
+                        <span className="font-semibold text-gold">
+                          {formatUsd(m.contestSummary.topPrizePoolCents)}
+                        </span>
+                        <span className="text-muted">
+                          {" "}
+                          prize pool &middot; {m.contestSummary.currentEntries}/
+                          {m.contestSummary.maxEntries} entered
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
                 {g.status === "LIVE" && (

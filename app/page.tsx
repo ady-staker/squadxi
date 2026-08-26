@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { LiveMatchStrip } from "@/components/home/LiveMatchStrip";
 import { FaqAccordion } from "@/components/home/FaqAccordion";
 import { TeamCrest } from "@/components/home/TeamCrest";
@@ -111,7 +112,7 @@ function formatUsd(cents: number): string {
 }
 
 export default async function HomePage() {
-  const stats = await getHomeStats();
+  const [stats, user] = await Promise.all([getHomeStats(), getCurrentUser()]);
 
   return (
     <div className="flex flex-col gap-24">
@@ -163,12 +164,21 @@ export default async function HomePage() {
             >
               Browse matches
             </Link>
-            <Link
-              href="/signup"
-              className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-ink transition hover:border-primary"
-            >
-              Create account
-            </Link>
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-ink transition hover:border-primary"
+              >
+                My Leagues
+              </Link>
+            ) : (
+              <Link
+                href="/signup"
+                className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-ink transition hover:border-primary"
+              >
+                Create account
+              </Link>
+            )}
           </div>
         </div>
       </section>
