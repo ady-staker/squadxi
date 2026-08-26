@@ -67,6 +67,10 @@ export async function GET() {
               status: roleBonus.status,
             }
           : null,
+        // Set only for a top-3 win paid via testnet ETH -- see
+        // lib/contest-finalization.ts. A CoinVoyage-paid win has no
+        // self-serve claim; it's in the admin-run manual Payout queue.
+        prizeClaimPending: Boolean(e.claimId) && !e.claimedAt,
       };
     }),
   });

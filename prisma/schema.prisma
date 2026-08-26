@@ -207,6 +207,19 @@ model ContestEntry {
   testnetPaymentTxHash String? @unique // set once a payWithTestnetEth entry fee is confirmed on-chain; unique so the same real transaction can never confirm two different entries
   createdAt         DateTime @default(now())
 
+  // Top-3 prize claim -- set only for a winning entry whose OWN entry fee
+  // was paid in testnet ETH (testnetPaymentTxHash is set); same
+  // fields-on-the-model convention as LiveBet's claim* columns, self-serve
+  // on-chain via the same RoleBonusClaim.sol contract/operator signature
+  // mechanism. A CoinVoyage-paid winner's prize still goes through Payout
+  // (this app has no automated payout path for real money) -- see
+  // lib/contest-finalization.ts for which branch a winner takes.
+  claimId            String?    @unique
+  claimAmountWei     String?
+  claimWalletAddress String?
+  claimTxHash        String?
+  claimedAt          DateTime?
+
   @@unique([contestId, userId])
   @@unique([leagueId, userId])
 }

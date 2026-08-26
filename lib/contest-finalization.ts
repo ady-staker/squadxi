@@ -1,7 +1,10 @@
 import { keccak256, stringToHex } from "viem";
 import { prisma } from "@/lib/prisma";
 import { applyMultiplier, captaincyFor } from "@/lib/scoring";
-import { centsToTestnetWei } from "@/lib/robinhood-chain";
+import {
+  centsToTestnetWei,
+  resolveRobinhoodConfig,
+} from "@/lib/robinhood-chain";
 
 const PRIZE_SPLIT = [0.5, 0.3, 0.2]; // top 3: 50/30/20% of the prize pool
 
@@ -10,6 +13,13 @@ const ROLE_BONUS_ORDER = ["WK", "BAT", "BOWL", "AR"] as const;
 // Must match the contract-side derivation exactly (Phase 2/3).
 function roleBonusClaimId(contestId: string, role: string): string {
   return keccak256(stringToHex(`${contestId}:${role}`));
+}
+
+// Same derivation convention as roleBonusClaimId, namespaced so a prize
+// claim can never collide with a role-bonus claim -- keyed by the entry
+// itself since exactly one top-3 prize claim ever exists per entry.
+function contestPrizeClaimId(contestEntryId: string): string {
+  return keccak256(stringToHex(`prize:${contestEntryId}`));
 }
 
 /** Closes entries on every OPEN Contest/League tied to a match -- called
@@ -233,6 +243,10 @@ export async function finalizeMatchContests(matchId: string): Promise<void> {
   const contests = await prisma.contest.findMany({
     where: { matchId, status: "LOCKED" },
   });
+  // Resolved once for the whole batch -- a testnet-ETH winner's prize
+  // converts at whatever rate is live when this match finalizes, same as
+  // computeRoleBonuses' own rate read below.
+  const { centsPerTestnetEth } = await resolveRobinhoodConfig();
 
   for (const contest of contests) {
     const paidEntries = await prisma.contestEntry.findMany({
@@ -272,20 +286,42 @@ export async function finalizeMatchContests(matchId: string): Promise<void> {
       });
 
       if (prizeCents > 0) {
-        await prisma.payout.upsert({
-          where: { contestEntryId: ranked[i].id },
-          create: {
-            contestEntryId: ranked[i].id,
-            amountOwedCents: prizeCents,
-            // null until the winner provides these -- see the Payout
-            // model's doc comment on why this app's Payout rows can be
-            // born without them, unlike coinflip-site's.
-            chain: null,
-            token: null,
-            walletAddress: null,
-          },
-          update: {}, // already exists (e.g. a re-run) -- don't clobber an in-progress payout
-        });
+        const entry = ranked[i];
+        // A winner whose OWN entry fee was paid in testnet ETH gets a
+        // self-serve on-chain claim, same mechanism as live bets and role
+        // bonuses -- no admin/manual Payout needed. Everyone else
+        // (CoinVoyage-paid, or the rate is unset) still goes through the
+        // manual Payout queue, since CoinVoyage has no automated payout API.
+        // Never overwrites an already-issued claim/payout on a re-run.
+        if (entry.testnetPaymentTxHash && centsPerTestnetEth) {
+          if (!entry.claimId) {
+            await prisma.contestEntry.update({
+              where: { id: entry.id },
+              data: {
+                claimId: contestPrizeClaimId(entry.id),
+                claimAmountWei: centsToTestnetWei(
+                  prizeCents,
+                  centsPerTestnetEth,
+                ).toString(),
+              },
+            });
+          }
+        } else {
+          await prisma.payout.upsert({
+            where: { contestEntryId: entry.id },
+            create: {
+              contestEntryId: entry.id,
+              amountOwedCents: prizeCents,
+              // null until the winner provides these -- see the Payout
+              // model's doc comment on why this app's Payout rows can be
+              // born without them, unlike coinflip-site's.
+              chain: null,
+              token: null,
+              walletAddress: null,
+            },
+            update: {}, // already exists (e.g. a re-run) -- don't clobber an in-progress payout
+          });
+        }
       }
     }
 

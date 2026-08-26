@@ -16,6 +16,7 @@ type Entry = {
   rank: number | null;
   prizeCents: number;
   roleBonus: { claimId: string; role: string; status: string } | null;
+  prizeClaimPending: boolean;
 };
 
 function paymentLabel(status: string): string {
@@ -102,6 +103,15 @@ export function MyEntries() {
             >
               You won Best {e.roleBonus.role} — claim your Robinhood Chain bonus
               →
+            </Link>
+          )}
+          {e.prizeClaimPending && (
+            <Link
+              href={`/contest-entries/claim/${e.id}`}
+              className="rounded-xl border border-gold/40 bg-gold/10 px-4 py-2 text-xs font-semibold text-gold transition hover:border-gold"
+            >
+              You won ${(e.prizeCents / 100).toFixed(2)} — claim your prize on
+              Robinhood Chain →
             </Link>
           )}
         </div>
