@@ -617,19 +617,19 @@ export function MatchHub({ matchId }: { matchId: string }) {
       {match.status === "LIVE" && (
         <Link
           href={`/matches/${matchId}/live`}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/10 px-6 py-4 transition hover:border-accent"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-loss/40 bg-loss/10 px-6 py-4 transition hover:border-loss"
         >
           <div className="flex items-center gap-3">
-            <span className="h-2.5 w-2.5 animate-pulse-dot rounded-full bg-accent" />
+            <span className="h-2.5 w-2.5 animate-pulse-dot rounded-full bg-loss" />
             <div>
-              <p className="text-sm font-semibold text-accent">Match is live</p>
+              <p className="text-sm font-semibold text-loss">Match is live</p>
               <p className="text-xs text-muted">
                 Follow every ball, the live score, and who's batting and
                 bowling.
               </p>
             </div>
           </div>
-          <span className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper">
+          <span className="rounded-full bg-loss px-4 py-2 text-xs font-semibold text-paper">
             Watch live →
           </span>
         </Link>

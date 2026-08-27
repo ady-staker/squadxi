@@ -107,7 +107,7 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
           <span
             className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
               data.match.status === "LIVE"
-                ? "bg-accent/15 text-accent"
+                ? "bg-loss/15 text-loss"
                 : data.match.status === "COMPLETED"
                   ? "bg-gold/15 text-gold"
                   : "bg-border text-muted"

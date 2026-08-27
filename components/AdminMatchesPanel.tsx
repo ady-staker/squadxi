@@ -229,7 +229,7 @@ export function AdminMatchesPanel() {
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase ${
                     m.status === "LIVE"
-                      ? "bg-accent/15 text-accent"
+                      ? "bg-loss/15 text-loss"
                       : m.status === "COMPLETED"
                         ? "bg-gold/15 text-gold"
                         : "bg-border text-muted"

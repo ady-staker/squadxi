@@ -138,8 +138,8 @@ export function MatchList() {
                   </div>
                 </div>
                 {g.status === "LIVE" && (
-                  <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent">
-                    <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" />
+                  <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-loss/15 px-2.5 py-1 text-xs font-semibold text-loss">
+                    <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-loss" />
                     Live
                   </span>
                 )}

@@ -17,8 +17,8 @@ type MatchRow = {
 function StatusPill({ status }: { status: string }) {
   if (status === "LIVE") {
     return (
-      <span className="flex items-center gap-1.5 rounded-full bg-accent/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
-        <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" />
+      <span className="flex items-center gap-1.5 rounded-full bg-loss/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-loss">
+        <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-loss" />
         Live
       </span>
     );
