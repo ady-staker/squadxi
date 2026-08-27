@@ -134,7 +134,7 @@ export function EnteredMatchOverview({ matchId }: { matchId: string }) {
         )}
       </div>
 
-      {countdown && (
+      {countdown ? (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
             Match starts in
@@ -157,6 +157,12 @@ export function EnteredMatchOverview({ matchId }: { matchId: string }) {
             ))}
           </div>
         </div>
+      ) : (
+        data.match.status === "UPCOMING" && (
+          <p className="text-sm font-semibold text-ink">
+            Kicking off any moment now.
+          </p>
+        )
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
