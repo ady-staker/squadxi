@@ -28,6 +28,49 @@ export async function GET(
   });
   const innings = summarizeInnings(revealedEvents);
 
+  // Newest-first ball-by-ball feed for BallByBallFeed.tsx -- only the tail
+  // end of what's revealed so far, resolved to player names since the raw
+  // events only carry ids.
+  const RECENT_EVENT_COUNT = 8;
+  const recentEventRows = await prisma.matchEvent.findMany({
+    where: { matchId: match.id, sequence: { lt: match.currentEventSequence } },
+    orderBy: { sequence: "desc" },
+    take: RECENT_EVENT_COUNT,
+  });
+  const recentEventPlayerIds = [
+    ...new Set(
+      recentEventRows.flatMap((e) =>
+        [e.batsmanId, e.bowlerId, e.dismissedPlayerId].filter(
+          (id): id is string => Boolean(id),
+        ),
+      ),
+    ),
+  ];
+  const recentEventPlayers =
+    recentEventPlayerIds.length > 0
+      ? await prisma.player.findMany({
+          where: { id: { in: recentEventPlayerIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const nameById = new Map(recentEventPlayers.map((p) => [p.id, p.name]));
+  const recentEvents = recentEventRows.map((e) => ({
+    id: e.id,
+    sequence: e.sequence,
+    over: e.over,
+    ballInOver: e.ballInOver,
+    runsScored: e.runsScored,
+    isWide: e.isWide,
+    isNoBall: e.isNoBall,
+    isWicket: e.isWicket,
+    dismissalType: e.dismissalType,
+    batsmanName: nameById.get(e.batsmanId) ?? "Batsman",
+    bowlerName: nameById.get(e.bowlerId) ?? "Bowler",
+    dismissedPlayerName: e.dismissedPlayerId
+      ? (nameById.get(e.dismissedPlayerId) ?? null)
+      : null,
+  }));
+
   const [team1, team2] = await Promise.all([
     prisma.team.findUnique({ where: { id: match.team1Id } }),
     prisma.team.findUnique({ where: { id: match.team2Id } }),
@@ -114,6 +157,7 @@ export async function GET(
       odds,
     },
     innings,
+    recentEvents,
     leaderboard,
   });
 }

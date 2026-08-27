@@ -63,12 +63,17 @@ const config: Config = {
           "0%": { transform: "translateX(0)" },
           "100%": { transform: "translateX(-50%)" },
         },
+        "score-flash": {
+          "0%": { backgroundColor: "rgb(var(--color-secondary) / 0.25)" },
+          "100%": { backgroundColor: "transparent" },
+        },
       },
       animation: {
         "floodlight-drift": "floodlight-drift 14s ease-in-out infinite",
         "pulse-dot": "pulse-dot 1.6s ease-in-out infinite",
         "rise-in": "rise-in 0.6s ease-out both",
         marquee: "marquee 28s linear infinite",
+        "score-flash": "score-flash 1s ease-out",
       },
     },
   },

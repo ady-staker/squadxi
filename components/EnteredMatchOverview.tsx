@@ -32,6 +32,8 @@ type ContestFill = {
   maxEntries: number;
   prizePoolCents: number;
   status: string;
+  myPrizeCents: number;
+  myRank: number | null;
 };
 type Summary = {
   entered: boolean;
@@ -65,6 +67,58 @@ function useCountdown(targetIso: string | undefined) {
     minutes: Math.floor((totalSeconds % 3600) / 60),
     seconds: totalSeconds % 60,
   };
+}
+
+function usd(cents: number): string {
+  return `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// The personal payoff moment the countdown/live view has been building
+// toward -- shown once at least one of the user's contests has actually
+// settled, distinct from CompletedMatchInsights' match-wide stats.
+function YourResult({ contests }: { contests: ContestFill[] }) {
+  const finalized = contests.filter((c) => c.status === "FINALIZED");
+  if (finalized.length === 0) return null;
+
+  const totalPrizeCents = finalized.reduce((sum, c) => sum + c.myPrizeCents, 0);
+  const won = totalPrizeCents > 0;
+  const bestRank = finalized
+    .map((c) => c.myRank)
+    .filter((r): r is number => r !== null)
+    .sort((a, b) => a - b)[0];
+
+  return (
+    <div
+      className={`rounded-xl border p-5 animate-rise-in ${
+        won ? "border-gold/40 bg-gold/5" : "border-border bg-paper"
+      }`}
+    >
+      <p
+        className={`text-xs font-semibold uppercase tracking-wide ${won ? "text-gold" : "text-muted"}`}
+      >
+        Your result
+      </p>
+      <p className="mt-2 font-display text-xl font-bold text-ink">
+        {won ? "You won this one!" : "No prize this time"}
+      </p>
+      <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-1">
+        {won && (
+          <p className="text-2xl font-bold text-gold">
+            {usd(totalPrizeCents)}
+            <span className="ml-1 text-xs font-normal text-muted">won</span>
+          </p>
+        )}
+        {!won && (
+          <p className="text-sm text-muted">Better luck in the next match.</p>
+        )}
+        {bestRank && (
+          <p className="text-sm text-muted">
+            Finished <span className="font-semibold text-ink">#{bestRank}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function PlayerCard({
@@ -133,6 +187,8 @@ export function EnteredMatchOverview({ matchId }: { matchId: string }) {
           </p>
         )}
       </div>
+
+      <YourResult contests={contests} />
 
       {countdown ? (
         <div>

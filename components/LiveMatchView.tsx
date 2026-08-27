@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { LiveBetPanel } from "@/components/LiveBetPanel";
 import { CompletedMatchInsights } from "@/components/CompletedMatchInsights";
 import { EnteredMatchOverview } from "@/components/EnteredMatchOverview";
+import { BallByBallFeed, type FeedEvent } from "@/components/BallByBallFeed";
+import { MatchStageTracker } from "@/components/MatchStageTracker";
 
 type InningsSummary = {
   innings: number;
@@ -38,6 +40,7 @@ type LiveData = {
     odds: { team1Multiplier: number; team2Multiplier: number } | null;
   };
   innings: InningsSummary[];
+  recentEvents: FeedEvent[];
   leaderboard: LeaderboardRow[];
 };
 
@@ -90,6 +93,13 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
         )
       : 0;
 
+  const winner =
+    data.match.status === "COMPLETED" && data.match.winnerTeamId
+      ? [data.match.team1, data.match.team2].find(
+          (t) => t?.id === data.match.winnerTeamId,
+        )
+      : null;
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -114,6 +124,8 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
         </div>
       </div>
 
+      <MatchStageTracker status={data.match.status} innings={data.innings} />
+
       <EnteredMatchOverview matchId={matchId} />
 
       {data.innings.length === 0 ? (
@@ -122,8 +134,8 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {data.innings.map((inn) => (
             <div
-              key={inn.innings}
-              className="rounded-xl border border-border bg-surface p-4"
+              key={`${inn.innings}-${inn.runs}-${inn.wickets}`}
+              className="animate-score-flash rounded-xl border border-border bg-surface p-4"
             >
               <p className="text-xs uppercase tracking-wide text-muted">
                 Innings {inn.innings}
@@ -139,11 +151,24 @@ export function LiveMatchView({ matchId }: { matchId: string }) {
         </div>
       )}
 
+      {data.match.status !== "UPCOMING" && (
+        <BallByBallFeed events={data.recentEvents} />
+      )}
+
       {data.match.status === "COMPLETED" && (
         <>
-          <p className="rounded-xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-ink">
-            Match complete.
-          </p>
+          <div className="rounded-2xl border border-gold/40 bg-gold/5 px-6 py-8 text-center animate-rise-in">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gold">
+              Result
+            </p>
+            <p className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
+              {winner ? `${winner.name} won` : "Match complete"}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              {data.innings.length === 2 &&
+                `${data.innings[0].runs}/${data.innings[0].wickets} vs ${data.innings[1].runs}/${data.innings[1].wickets}`}
+            </p>
+          </div>
           <CompletedMatchInsights matchId={data.match.id} />
         </>
       )}

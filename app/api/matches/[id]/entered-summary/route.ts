@@ -53,7 +53,7 @@ export async function GET(
             fantasyTeamId: { in: teamIds },
             paymentStatus: "COMPLETED",
           },
-          select: { contestId: true },
+          select: { contestId: true, prizeCents: true, rank: true },
         })
       : [];
   if (myEntries.length === 0) {
@@ -139,13 +139,22 @@ export async function GET(
       captain: playerSummary(t.captainId),
       viceCaptain: playerSummary(t.viceCaptainId),
     })),
-    contests: myContests.map((c) => ({
-      id: c.id,
-      name: c.name,
-      currentEntries: c.currentEntries,
-      maxEntries: c.maxEntries,
-      prizePoolCents: c.prizePoolCents,
-      status: c.status,
-    })),
+    contests: myContests.map((c) => {
+      const mine = myEntries.filter((e) => e.contestId === c.id);
+      const myPrizeCents = mine.reduce((sum, e) => sum + e.prizeCents, 0);
+      const ranks = mine
+        .map((e) => e.rank)
+        .filter((r): r is number => r !== null);
+      return {
+        id: c.id,
+        name: c.name,
+        currentEntries: c.currentEntries,
+        maxEntries: c.maxEntries,
+        prizePoolCents: c.prizePoolCents,
+        status: c.status,
+        myPrizeCents,
+        myRank: ranks.length > 0 ? Math.min(...ranks) : null,
+      };
+    }),
   });
 }
