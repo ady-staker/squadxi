@@ -16,6 +16,7 @@ import { robinhoodChainTestnet } from "@/lib/wagmi-config";
 import { describeChainSwitchError } from "@/lib/wallet-errors";
 import { forceWalletAccountPicker } from "@/lib/wallet-connect";
 import { EnteredMatchOverview } from "@/components/EnteredMatchOverview";
+import { ManualTxConfirmForm } from "@/components/ManualTxConfirmForm";
 
 type MatchInfo = {
   id: string;
@@ -119,7 +120,7 @@ function TestnetPaymentFlow({
   }
 
   useEffect(() => {
-    if (!isConfirmed || !txHash || confirmed) return;
+    if (!isConfirmed || !txHash || confirmed || !address) return;
     (async () => {
       try {
         const res = await fetch(
@@ -127,7 +128,7 @@ function TestnetPaymentFlow({
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ txHash }),
+            body: JSON.stringify({ txHash, walletAddress: address }),
           },
         );
         const data = await res.json();
@@ -140,7 +141,7 @@ function TestnetPaymentFlow({
         );
       }
     })();
-  }, [isConfirmed, txHash, confirmed, contestEntryId, onConfirmed]);
+  }, [isConfirmed, txHash, confirmed, address, contestEntryId, onConfirmed]);
 
   if (confirmed) {
     return (
@@ -236,6 +237,17 @@ function TestnetPaymentFlow({
         </p>
       )}
       {confirmError && <p className="text-xs text-loss">{confirmError}</p>}
+      <div className="w-full max-w-sm">
+        <ManualTxConfirmForm
+          confirmUrl={`/api/contest-entries/${contestEntryId}/confirm-testnet-payment`}
+          prefillTxHash={txHash}
+          walletAddress={address}
+          onConfirmed={() => {
+            setConfirmed(true);
+            onConfirmed();
+          }}
+        />
+      </div>
     </div>
   );
 }

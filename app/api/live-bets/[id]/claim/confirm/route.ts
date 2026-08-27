@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import type { Hex } from "viem";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { verifyBonusClaimedOnChain } from "@/lib/robinhood-chain";
+import {
+  verifyBonusClaimedOnChain,
+  TransactionNotYetVisibleError,
+} from "@/lib/robinhood-chain";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 
@@ -52,12 +55,26 @@ export async function POST(
     );
   }
 
-  const verified = await verifyBonusClaimedOnChain(
-    txHash as Hex,
-    bet.claimId as Hex,
-    bet.claimWalletAddress as `0x${string}`,
-    BigInt(bet.claimAmountWei),
-  );
+  let verified: boolean;
+  try {
+    verified = await verifyBonusClaimedOnChain(
+      txHash as Hex,
+      bet.claimId as Hex,
+      bet.claimWalletAddress as `0x${string}`,
+      BigInt(bet.claimAmountWei),
+    );
+  } catch (err) {
+    if (err instanceof TransactionNotYetVisibleError) {
+      return NextResponse.json(
+        {
+          error:
+            "That transaction hasn't shown up on-chain yet -- wait a few seconds and try again.",
+        },
+        { status: 409 },
+      );
+    }
+    throw err;
+  }
   if (!verified) {
     return NextResponse.json(
       { error: "Couldn't verify that transaction on-chain." },

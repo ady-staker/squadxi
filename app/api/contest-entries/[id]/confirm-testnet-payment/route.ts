@@ -6,9 +6,11 @@ import {
   centsToTestnetWei,
   resolveRobinhoodConfig,
   verifyTestnetTransfer,
+  TransactionNotYetVisibleError,
 } from "@/lib/robinhood-chain";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
+const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
 export async function POST(
   request: Request,
@@ -23,15 +25,23 @@ export async function POST(
   }
 
   let txHash: unknown;
+  let walletAddress: unknown;
   try {
     const body = await request.json();
     txHash = body?.txHash;
+    walletAddress = body?.walletAddress;
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
   if (typeof txHash !== "string" || !TX_HASH_RE.test(txHash)) {
     return NextResponse.json(
       { error: "A valid transaction hash is required." },
+      { status: 400 },
+    );
+  }
+  if (typeof walletAddress !== "string" || !ADDRESS_RE.test(walletAddress)) {
+    return NextResponse.json(
+      { error: "A connected wallet address is required." },
       { status: 400 },
     );
   }
@@ -58,11 +68,26 @@ export async function POST(
     entry.entryFeeCents,
     config.centsPerTestnetEth,
   );
-  const verified = await verifyTestnetTransfer(
-    txHash as `0x${string}`,
-    config.contractAddress,
-    expectedAmountWei,
-  );
+  let verified: boolean;
+  try {
+    verified = await verifyTestnetTransfer(
+      txHash as `0x${string}`,
+      config.contractAddress,
+      expectedAmountWei,
+      walletAddress as `0x${string}`,
+    );
+  } catch (err) {
+    if (err instanceof TransactionNotYetVisibleError) {
+      return NextResponse.json(
+        {
+          error:
+            "That transaction hasn't shown up on-chain yet -- wait a few seconds and try again.",
+        },
+        { status: 409 },
+      );
+    }
+    throw err;
+  }
   if (!verified) {
     return NextResponse.json(
       { error: "Couldn't verify that transaction on-chain." },

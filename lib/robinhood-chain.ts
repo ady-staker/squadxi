@@ -5,11 +5,22 @@ import {
   keccak256,
   encodePacked,
   decodeEventLog,
+  TransactionNotFoundError,
+  TransactionReceiptNotFoundError,
   type Address,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { prisma } from "@/lib/prisma";
+
+// Thrown instead of letting viem's own not-found errors propagate raw --
+// callers use this to tell "not mined yet, retry shortly" apart from "this
+// transaction is real but doesn't match what was expected."
+export class TransactionNotYetVisibleError extends Error {
+  constructor() {
+    super("Transaction not yet visible on-chain -- it may still be pending.");
+  }
+}
 
 // Chain ID is fixed by Robinhood Chain itself, not a per-deployment choice --
 // deliberately not a Settings field (see contracts/hardhat.config.ts, same
@@ -130,22 +141,43 @@ export function centsToTestnetWei(cents: number, centsPerEth: number): bigint {
 }
 
 /** Verifies a plain ETH transfer (contest entry fees paid in testnet ETH,
- *  not a contract call) -- checks the real transaction's to/value and the
- *  receipt's success status, never trusting a client-reported amount. */
+ *  not a contract call) -- checks the real transaction's to/value/sender and
+ *  the receipt's success status, never trusting a client-reported amount.
+ *  expectedFrom matters more than it looks: without it, anyone who noticed
+ *  a stranger's real, still-unconfirmed payment on the public block
+ *  explorer could paste that same txHash into their own unrelated entry
+ *  and win the confirmation race, since testnetPaymentTxHash's uniqueness
+ *  only stops the SAME hash being used twice, not being stolen once. This
+ *  ties a confirmation to the wallet actually connected in that user's own
+ *  browser session, the same trust boundary already used for claims
+ *  (ContestEntry.claimWalletAddress). */
 export async function verifyTestnetTransfer(
   txHash: Hex,
   expectedTo: Address,
   expectedAmountWei: bigint,
+  expectedFrom: Address,
 ): Promise<boolean> {
   const config = await resolveRobinhoodConfig();
   const client = await publicClientFor(config);
 
-  const [tx, receipt] = await Promise.all([
-    client.getTransaction({ hash: txHash }),
-    client.getTransactionReceipt({ hash: txHash }),
-  ]);
+  let tx, receipt;
+  try {
+    [tx, receipt] = await Promise.all([
+      client.getTransaction({ hash: txHash }),
+      client.getTransactionReceipt({ hash: txHash }),
+    ]);
+  } catch (err) {
+    if (
+      err instanceof TransactionNotFoundError ||
+      err instanceof TransactionReceiptNotFoundError
+    ) {
+      throw new TransactionNotYetVisibleError();
+    }
+    throw err;
+  }
   if (receipt.status !== "success") return false;
   if (tx.to?.toLowerCase() !== expectedTo.toLowerCase()) return false;
+  if (tx.from.toLowerCase() !== expectedFrom.toLowerCase()) return false;
   return tx.value === expectedAmountWei;
 }
 
@@ -173,7 +205,15 @@ export async function verifyBonusClaimedOnChain(
   if (!config.contractAddress) return false;
 
   const client = await publicClientFor(config);
-  const receipt = await client.getTransactionReceipt({ hash: txHash });
+  let receipt;
+  try {
+    receipt = await client.getTransactionReceipt({ hash: txHash });
+  } catch (err) {
+    if (err instanceof TransactionReceiptNotFoundError) {
+      throw new TransactionNotYetVisibleError();
+    }
+    throw err;
+  }
   if (receipt.status !== "success") return false;
   if (receipt.to?.toLowerCase() !== config.contractAddress.toLowerCase()) {
     return false;

@@ -17,6 +17,7 @@ import { MIN_STAKE_CENTS, MAX_STAKE_CENTS } from "@/lib/live-bet-constants";
 import { isTerminalStatus } from "@/lib/order-status";
 import { describeChainSwitchError } from "@/lib/wallet-errors";
 import { forceWalletAccountPicker } from "@/lib/wallet-connect";
+import { ManualTxConfirmForm } from "@/components/ManualTxConfirmForm";
 
 type Team = { id: string; shortName: string; name: string };
 type Odds = { team1Multiplier: number; team2Multiplier: number };
@@ -97,6 +98,7 @@ function TestnetBetPaymentFlow({
   }
 
   async function confirmOnServer(hash: `0x${string}`) {
+    if (!address) return;
     setConfirming(true);
     setConfirmError(null);
     try {
@@ -105,7 +107,7 @@ function TestnetBetPaymentFlow({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ txHash: hash }),
+          body: JSON.stringify({ txHash: hash, walletAddress: address }),
         },
       );
       const data = await res.json();
@@ -243,6 +245,17 @@ function TestnetBetPaymentFlow({
             : sendError.message}
         </p>
       )}
+      <div className="w-full max-w-sm">
+        <ManualTxConfirmForm
+          confirmUrl={`/api/live-bets/${liveBetId}/confirm-testnet-payment`}
+          prefillTxHash={txHash}
+          walletAddress={address}
+          onConfirmed={() => {
+            setConfirmed(true);
+            onConfirmed();
+          }}
+        />
+      </div>
     </div>
   );
 }
