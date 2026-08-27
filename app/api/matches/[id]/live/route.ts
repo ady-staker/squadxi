@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { summarizeInnings } from "@/lib/live-advance";
+import { summarizeInnings, autoAdvanceIfDue } from "@/lib/live-advance";
 import { computeMatchOdds } from "@/lib/live-bet-odds";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -8,6 +8,8 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } },
 ) {
+  await autoAdvanceIfDue(params.id);
+
   const match = await prisma.match.findUnique({ where: { id: params.id } });
   if (!match) {
     return NextResponse.json({ error: "Match not found." }, { status: 404 });

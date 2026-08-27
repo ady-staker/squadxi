@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { autoAdvanceIfDue } from "@/lib/live-advance";
 
 export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
+  await autoAdvanceIfDue(params.id);
+
   const match = await prisma.match.findUnique({ where: { id: params.id } });
   if (!match) {
     return NextResponse.json({ error: "Match not found." }, { status: 404 });

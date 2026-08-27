@@ -166,6 +166,35 @@ export async function advanceMatch(
   };
 }
 
+// Paced so a full T20 plays out in well under 15 real minutes, instead of
+// sitting frozen until an admin clicks Advance.
+const AUTO_ADVANCE_INTERVAL_MS = 20_000;
+
+// Called from every polled match GET route. lastAdvancedAt is the pacing
+// clock and a CAS guard against concurrent pollers double-advancing a tick.
+export async function autoAdvanceIfDue(matchId: string): Promise<void> {
+  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  if (!match || match.status === "COMPLETED") return;
+
+  const now = new Date();
+  if (match.status === "UPCOMING" && match.scheduledAt > now) return;
+  if (
+    match.status === "LIVE" &&
+    match.lastAdvancedAt &&
+    now.getTime() - match.lastAdvancedAt.getTime() < AUTO_ADVANCE_INTERVAL_MS
+  ) {
+    return;
+  }
+
+  const claimed = await prisma.match.updateMany({
+    where: { id: matchId, lastAdvancedAt: match.lastAdvancedAt },
+    data: { lastAdvancedAt: now },
+  });
+  if (claimed.count === 0) return; // another poller already claimed this tick
+
+  await advanceMatch(matchId, DEFAULT_ADVANCE_BY);
+}
+
 export type InningsSummary = {
   innings: number;
   runs: number;

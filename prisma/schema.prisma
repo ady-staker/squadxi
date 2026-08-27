@@ -76,11 +76,14 @@ model Match {
   format               String    @default("T20")
   scheduledAt          DateTime
   status               String    @default("UPCOMING") // UPCOMING | LIVE | COMPLETED
-  currentEventSequence Int       @default(0) // live cursor into MatchEvent, advanced by the admin Advance control
+  currentEventSequence Int       @default(0) // live cursor into MatchEvent, advanced by the admin Advance control or lib/live-advance.ts's autoAdvanceIfDue
   totalEvents          Int       @default(0)
   winnerTeamId         String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
+
+  // Pacing clock + CAS guard for lib/live-advance.ts's autoAdvanceIfDue.
+  lastAdvancedAt DateTime?
 }
 
 // Pre-generated ball-by-ball log, written once by lib/match-simulator.ts at

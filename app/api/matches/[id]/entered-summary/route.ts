@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { autoAdvanceIfDue } from "@/lib/live-advance";
 
 type PlayerSummary = {
   id: string;
@@ -30,6 +31,8 @@ export async function GET(
       { status: 401 },
     );
   }
+
+  await autoAdvanceIfDue(params.id);
 
   const match = await prisma.match.findUnique({ where: { id: params.id } });
   if (!match) {
