@@ -8,6 +8,8 @@ type MatchRow = {
   venue: string;
   currentEventSequence: number;
   totalEvents: number;
+  team1Id: string;
+  team2Id: string;
   team1: string;
   team2: string;
 };
@@ -132,12 +134,47 @@ function CreateContestForm({
   );
 }
 
+// Winner choice only matters for the first advance call ever made on this
+// match -- see ensureEventsGenerated in lib/live-advance.ts, which locks in
+// the ball-by-ball log (and winnerTeamId) permanently once any MatchEvent
+// rows exist. Only rendered for UPCOMING matches for exactly that reason.
+function WinnerPicker({
+  team1,
+  team1Id,
+  team2,
+  team2Id,
+  value,
+  onChange,
+}: {
+  team1: string;
+  team1Id: string;
+  team2: string;
+  team2Id: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      title="Which team wins once this match commences -- auto lets the simulator decide, same as matches that auto-commence from a page view"
+      className="rounded-lg border border-border bg-paper px-2 py-1 text-xs text-ink"
+    >
+      <option value="">Auto (system decides)</option>
+      <option value={team1Id}>{team1} wins</option>
+      <option value={team2Id}>{team2} wins</option>
+    </select>
+  );
+}
+
 function AdvanceButton({
   matchId,
   onDone,
+  forcedWinnerTeamId,
 }: {
   matchId: string;
   onDone: () => void;
+  forcedWinnerTeamId?: string;
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,7 +186,10 @@ function AdvanceButton({
       const res = await fetch(`/api/admin/matches/${matchId}/advance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ byN }),
+        body: JSON.stringify({
+          byN,
+          ...(forcedWinnerTeamId ? { forcedWinnerTeamId } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to advance.");
@@ -180,6 +220,47 @@ function AdvanceButton({
         </button>
       </div>
       {error && <p className="text-xs text-loss">{error}</p>}
+    </div>
+  );
+}
+
+function MatchActions({
+  match,
+  onDone,
+}: {
+  match: MatchRow;
+  onDone: () => void;
+}) {
+  const [winnerChoice, setWinnerChoice] = useState("");
+
+  return (
+    <div className="flex flex-col items-end gap-2">
+      {match.status === "UPCOMING" && (
+        <>
+          <CreateContestForm matchId={match.id} onDone={onDone} />
+          <WinnerPicker
+            team1={match.team1}
+            team1Id={match.team1Id}
+            team2={match.team2}
+            team2Id={match.team2Id}
+            value={winnerChoice}
+            onChange={setWinnerChoice}
+          />
+        </>
+      )}
+      {match.status === "COMPLETED" ? (
+        <span className="text-xs text-muted">Done</span>
+      ) : (
+        <AdvanceButton
+          matchId={match.id}
+          onDone={onDone}
+          forcedWinnerTeamId={
+            match.status === "UPCOMING" && winnerChoice
+              ? winnerChoice
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }
@@ -242,16 +323,7 @@ export function AdminMatchesPanel() {
                 {m.currentEventSequence}/{m.totalEvents || "?"}
               </td>
               <td className="px-3 py-2 text-right">
-                <div className="flex flex-col items-end gap-2">
-                  {m.status === "UPCOMING" && (
-                    <CreateContestForm matchId={m.id} onDone={load} />
-                  )}
-                  {m.status === "COMPLETED" ? (
-                    <span className="text-xs text-muted">Done</span>
-                  ) : (
-                    <AdvanceButton matchId={m.id} onDone={load} />
-                  )}
-                </div>
+                <MatchActions match={m} onDone={load} />
               </td>
             </tr>
           ))}

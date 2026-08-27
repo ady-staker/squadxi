@@ -23,7 +23,10 @@ const DEFAULT_ADVANCE_BY = 6; // one over's worth of legal-and-extra balls, a de
  *  re-seed would have. winnerTeamId is stored immediately even though the
  *  match isn't complete yet -- safe because no public route returns it
  *  before Match.status is actually COMPLETED (see GET /api/matches/[id]/live). */
-async function ensureEventsGenerated(matchId: string): Promise<void> {
+async function ensureEventsGenerated(
+  matchId: string,
+  forcedWinnerTeamId?: string,
+): Promise<void> {
   const existingCount = await prisma.matchEvent.count({ where: { matchId } });
   if (existingCount > 0) return;
 
@@ -48,6 +51,7 @@ async function ensureEventsGenerated(matchId: string): Promise<void> {
     team1Players.map(toSimPlayer),
     match.team2Id,
     team2Players.map(toSimPlayer),
+    forcedWinnerTeamId,
   );
 
   await prisma.matchEvent.createMany({
@@ -79,8 +83,9 @@ export type AdvanceResult = {
 export async function advanceMatch(
   matchId: string,
   byN: number = DEFAULT_ADVANCE_BY,
+  forcedWinnerTeamId?: string,
 ): Promise<AdvanceResult> {
-  await ensureEventsGenerated(matchId);
+  await ensureEventsGenerated(matchId, forcedWinnerTeamId);
 
   const match = await prisma.match.findUniqueOrThrow({
     where: { id: matchId },

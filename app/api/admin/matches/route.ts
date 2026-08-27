@@ -21,6 +21,8 @@ export async function GET() {
       venue: m.venue,
       currentEventSequence: m.currentEventSequence,
       totalEvents: m.totalEvents,
+      team1Id: m.team1Id,
+      team2Id: m.team2Id,
       team1: teamById.get(m.team1Id)?.shortName ?? "?",
       team2: teamById.get(m.team2Id)?.shortName ?? "?",
     })),

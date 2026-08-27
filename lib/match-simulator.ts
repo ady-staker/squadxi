@@ -128,18 +128,14 @@ function hashSeed(matchId: string): number {
   return h;
 }
 
-/** Simulates a full two-innings T20 match and returns its complete
- *  ball-by-ball log in sequence order, plus which team won. First innings
- *  runs to completion (20 overs or 10 wickets); second innings additionally
- *  stops the moment the target is passed, same as a real chase. */
-export function generateMatchEvents(
-  matchId: string,
+function simulateOnce(
+  seed: number,
   team1Id: string,
   team1Squad: SimPlayer[],
   team2Id: string,
   team2Squad: SimPlayer[],
 ): { events: SimEvent[]; winnerTeamId: string } {
-  const rng = mulberry32(hashSeed(matchId));
+  const rng = mulberry32(seed);
   const team1XI = pickPlayingXI(team1Squad);
   const team2XI = pickPlayingXI(team2Squad);
 
@@ -323,4 +319,51 @@ export function generateMatchEvents(
 
   const winnerTeamId = secondInningsRuns > firstInningsRuns ? team2Id : team1Id;
   return { events, winnerTeamId };
+}
+
+const FORCED_WINNER_MAX_ATTEMPTS = 50;
+
+/** Simulates a full two-innings T20 match and returns its complete
+ *  ball-by-ball log in sequence order, plus which team won. First innings
+ *  runs to completion (20 overs or 10 wickets); second innings additionally
+ *  stops the moment the target is passed, same as a real chase.
+ *
+ *  Unforced (forcedWinnerTeamId omitted) uses seed=hashSeed(matchId)
+ *  directly -- byte-identical to the pre-forcing behavior, so every
+ *  auto-commenced match is untouched by this parameter's existence.
+ *  forcedWinnerTeamId re-rolls with seed+attempt until that team's natural
+ *  result matches, rather than biasing weightedBallOutcome/simulateInnings
+ *  -- keeps ball-by-ball play statistically identical to an unforced match. */
+export function generateMatchEvents(
+  matchId: string,
+  team1Id: string,
+  team1Squad: SimPlayer[],
+  team2Id: string,
+  team2Squad: SimPlayer[],
+  forcedWinnerTeamId?: string,
+): { events: SimEvent[]; winnerTeamId: string } {
+  const baseSeed = hashSeed(matchId);
+  if (!forcedWinnerTeamId) {
+    return simulateOnce(baseSeed, team1Id, team1Squad, team2Id, team2Squad);
+  }
+  if (forcedWinnerTeamId !== team1Id && forcedWinnerTeamId !== team2Id) {
+    throw new Error("forcedWinnerTeamId must be one of this match's teams.");
+  }
+
+  let result = simulateOnce(baseSeed, team1Id, team1Squad, team2Id, team2Squad);
+  for (
+    let attempt = 1;
+    attempt < FORCED_WINNER_MAX_ATTEMPTS &&
+    result.winnerTeamId !== forcedWinnerTeamId;
+    attempt++
+  ) {
+    result = simulateOnce(
+      baseSeed + attempt,
+      team1Id,
+      team1Squad,
+      team2Id,
+      team2Squad,
+    );
+  }
+  return result;
 }

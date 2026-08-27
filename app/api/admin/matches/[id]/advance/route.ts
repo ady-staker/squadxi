@@ -11,6 +11,7 @@ export async function POST(
   }
 
   let byN: number | undefined;
+  let forcedWinnerTeamId: string | undefined;
   try {
     const body = await request.json();
     if (
@@ -20,18 +21,27 @@ export async function POST(
     ) {
       byN = body.byN;
     }
+    // Only matters on the very first advance for this match, before any
+    // MatchEvent rows exist -- see ensureEventsGenerated in lib/live-advance.ts.
+    if (
+      typeof body?.forcedWinnerTeamId === "string" &&
+      body.forcedWinnerTeamId
+    ) {
+      forcedWinnerTeamId = body.forcedWinnerTeamId;
+    }
   } catch {
-    // No body / not JSON -- fine, advanceMatch's default applies.
+    // No body / not JSON -- fine, advanceMatch's defaults apply.
   }
 
   try {
-    const result = await advanceMatch(params.id, byN);
+    const result = await advanceMatch(params.id, byN, forcedWinnerTeamId);
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     console.error(`Failed to advance match ${params.id}`, err);
-    return NextResponse.json(
-      { error: "Failed to advance match." },
-      { status: 500 },
-    );
+    const message =
+      err instanceof Error && err.message.includes("must be one of")
+        ? err.message
+        : "Failed to advance match.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
