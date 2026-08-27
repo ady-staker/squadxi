@@ -614,6 +614,44 @@ export function MatchHub({ matchId }: { matchId: string }) {
         <p className="text-sm text-muted">{match.venue}</p>
       </div>
 
+      {match.status === "LIVE" && (
+        <Link
+          href={`/matches/${matchId}/live`}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/10 px-6 py-4 transition hover:border-accent"
+        >
+          <div className="flex items-center gap-3">
+            <span className="h-2.5 w-2.5 animate-pulse-dot rounded-full bg-accent" />
+            <div>
+              <p className="text-sm font-semibold text-accent">Match is live</p>
+              <p className="text-xs text-muted">
+                Follow every ball, the live score, and who's batting and
+                bowling.
+              </p>
+            </div>
+          </div>
+          <span className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper">
+            Watch live →
+          </span>
+        </Link>
+      )}
+
+      {match.status === "COMPLETED" && (
+        <Link
+          href={`/matches/${matchId}/live`}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/40 bg-gold/10 px-6 py-4 transition hover:border-gold"
+        >
+          <div>
+            <p className="text-sm font-semibold text-gold">Match complete</p>
+            <p className="text-xs text-muted">
+              See the final result, and what happened to your entry.
+            </p>
+          </div>
+          <span className="rounded-full bg-gold px-4 py-2 text-xs font-semibold text-paper">
+            View result →
+          </span>
+        </Link>
+      )}
+
       <EnteredMatchOverview matchId={matchId} />
 
       <div className="rounded-2xl border border-border bg-surface p-6">
