@@ -55,6 +55,13 @@ export async function POST(
   if (entry.paymentStatus === "COMPLETED") {
     return NextResponse.json({ success: true, alreadyConfirmed: true });
   }
+  // Same guard as live bets' route -- prevents a testnet transfer confirming a CoinVoyage entry as paid.
+  if (entry.coinvoyageOrderId) {
+    return NextResponse.json(
+      { error: "This entry was placed via CoinVoyage, not testnet ETH." },
+      { status: 409 },
+    );
+  }
 
   const config = await resolveRobinhoodConfig();
   if (!config.contractAddress || !config.centsPerTestnetEth) {
