@@ -333,6 +333,7 @@ model Settings {
   coinVoyageWebhookSecret     String?
   robinhoodRpcUrl             String?
   robinhoodOperatorPrivateKey String? // signs claim vouchers -- never returned by any API/admin view
+  robinhoodRelayerPrivateKey  String? // pays gas to relay claim() on a winner's behalf -- never returned by any API/admin view; deliberately separate from robinhoodOperatorPrivateKey (that one only signs, never broadcasts)
   robinhoodContractAddress    String?
   robinhoodCentsPerTestnetEth Int? // bookkeeping conversion rate only; no real exchange rate backs testnet ETH
 

@@ -1,321 +1,107 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  useAccount,
-  useConnect,
-  useConnectors,
-  useDisconnect,
-  useChainId,
-  useSwitchChain,
-  useWriteContract,
-  useWaitForTransactionReceipt,
-} from "wagmi";
-import { robinhoodChainTestnet } from "@/lib/wagmi-config";
-import { describeChainSwitchError } from "@/lib/wallet-errors";
-import { forceWalletAccountPicker } from "@/lib/wallet-connect";
+import { useState } from "react";
 
-type Voucher = {
-  claimId: `0x${string}`;
-  winner: `0x${string}`;
-  amountWei: string;
-  signature: `0x${string}`;
-  contractAddress: `0x${string}`;
-  chainId: number;
-};
+const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
-const CLAIM_ABI = [
-  {
-    type: "function",
-    name: "claim",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "claimId", type: "bytes32" },
-      { name: "winner", type: "address" },
-      { name: "amountWei", type: "uint256" },
-      { name: "signature", type: "bytes" },
-    ],
-    outputs: [],
-  },
-] as const;
-
-// Copy of RoleBonusClaimPanel pointed at the parallel live-bet claim routes
-// (locked decision 5 in the live-betting plan -- authorized directly against
-// LiveBet.userId, no RoleBonusClaim join). Keyed by LiveBet.id, not the
-// bytes32 claimId, since the routes take the bet's own id as the URL param.
+// Same relayed one-step claim as ContestPrizeClaimPanel.tsx -- see that
+// component and lib/robinhood-chain.ts's relayClaim for the full rationale.
 export function LiveBetClaimPanel({ liveBetId }: { liveBetId: string }) {
-  const { address, isConnected } = useAccount();
-  const { connect, error: connectError } = useConnect();
-  const connectors = useConnectors();
-  const { disconnectAsync } = useDisconnect();
-  const chainId = useChainId();
-  const { switchChainAsync } = useSwitchChain();
-  const [switchingChain, setSwitchingChain] = useState(false);
-  const [switchError, setSwitchError] = useState<string | null>(null);
-  const {
-    writeContract,
-    data: txHash,
-    isPending,
-    error: writeError,
-  } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({ hash: txHash });
-
-  const [voucher, setVoucher] = useState<Voucher | null>(null);
-  const [voucherError, setVoucherError] = useState<string | null>(null);
-  const [requesting, setRequesting] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
   const [confirming, setConfirming] = useState(false);
-  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ txHash?: string } | null>(null);
 
-  async function requestVoucher() {
-    if (!address) return;
-    setRequesting(true);
-    setVoucherError(null);
+  const addressValid = ADDRESS_RE.test(walletAddress.trim());
+
+  async function submit() {
+    setSubmitting(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/live-bets/${liveBetId}/claim/voucher`, {
+      const res = await fetch(`/api/live-bets/${liveBetId}/claim/collect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress: address }),
+        body: JSON.stringify({ walletAddress: walletAddress.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to get voucher.");
-      setVoucher(data);
+      if (!res.ok) throw new Error(data.error ?? "Failed to send payout.");
+      setResult({ txHash: data.txHash });
     } catch (err) {
-      setVoucherError(
-        err instanceof Error ? err.message : "Failed to get voucher.",
-      );
-    } finally {
-      setRequesting(false);
-    }
-  }
-
-  // useChainId() can be stale for an unrecognized custom chain (see
-  // LiveBetPanel.tsx's identical fix) -- switch unconditionally.
-  async function submitClaim() {
-    if (!voucher) return;
-    if (address?.toLowerCase() !== voucher.winner.toLowerCase()) {
-      setVoucher(null);
-      setVoucherError(
-        "Your connected wallet changed -- please request a new voucher.",
-      );
-      return;
-    }
-    setSwitchingChain(true);
-    setSwitchError(null);
-    try {
-      await switchChainAsync({ chainId: voucher.chainId });
-      writeContract({
-        address: voucher.contractAddress,
-        abi: CLAIM_ABI,
-        functionName: "claim",
-        args: [
-          voucher.claimId,
-          voucher.winner,
-          BigInt(voucher.amountWei),
-          voucher.signature,
-        ],
-        chainId: voucher.chainId,
-      });
-    } catch (err) {
-      setSwitchError(describeChainSwitchError(err));
-    } finally {
-      setSwitchingChain(false);
-    }
-  }
-
-  // Awaited so state doesn't reset until disconnect actually clears.
-  async function cancel() {
-    try {
-      await disconnectAsync();
-    } catch {
-      // Best-effort -- reset below regardless.
-    }
-    setVoucher(null);
-    setVoucherError(null);
-    setSwitchError(null);
-  }
-
-  // Forces the wallet's picker -- see lib/wallet-connect.ts.
-  async function connectWallet() {
-    const connector = connectors[0];
-    if (!connector) return;
-    await forceWalletAccountPicker(connector);
-    connect({ connector });
-  }
-
-  async function confirmOnServer(hash: `0x${string}`) {
-    setConfirming(true);
-    setConfirmError(null);
-    try {
-      const res = await fetch(`/api/live-bets/${liveBetId}/claim/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ txHash: hash }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to confirm.");
-      setConfirmed(true);
-    } catch (err) {
-      setConfirmError(
-        err instanceof Error ? err.message : "Failed to confirm claim.",
-      );
-    } finally {
+      setError(err instanceof Error ? err.message : "Failed to send payout.");
       setConfirming(false);
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  useEffect(() => {
-    if (!isConfirmed || !txHash || confirmed || confirming) return;
-    confirmOnServer(txHash);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConfirmed, txHash, confirmed, confirming]);
-
-  if (confirmed) {
+  if (result) {
     return (
       <div className="rounded-2xl border border-accent/40 bg-accent/10 p-6 text-sm text-ink">
-        <p className="font-semibold text-accent">Winnings claimed!</p>
+        <p className="font-semibold text-accent">Winnings sent!</p>
         <p className="mt-1 text-xs text-muted">
-          Transaction: <span className="font-mono">{txHash}</span>
+          Sent to <span className="font-mono">{walletAddress.trim()}</span>
         </p>
-      </div>
-    );
-  }
-
-  if (!isConnected) {
-    return (
-      <div className="rounded-2xl border border-border bg-surface p-6">
-        <p className="mb-4 text-sm text-muted">
-          Connect a wallet to claim your winnings on Robinhood Chain testnet.
-        </p>
-        <button
-          onClick={connectWallet}
-          className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark"
-        >
-          Connect wallet
-        </button>
-        {connectError && (
-          <p className="mt-3 text-xs text-loss">
-            {connectError.message.includes("not found") ||
-            connectError.message.includes("No injected")
-              ? "No wallet extension found in this browser."
-              : connectError.message}
+        {result.txHash && (
+          <p className="mt-1 text-xs text-muted">
+            Transaction: <span className="font-mono">{result.txHash}</span>
           </p>
         )}
       </div>
     );
   }
 
-  // Render-time-only prompt; submitClaim() itself always re-confirms the chain.
-  if (chainId !== robinhoodChainTestnet.id && !switchingChain) {
+  if (confirming) {
     return (
-      <div className="rounded-2xl border border-border bg-surface p-6">
-        <p className="mb-4 text-sm text-muted">
-          Switch your wallet to Robinhood Chain testnet to continue.
+      <div className="flex flex-col gap-3 rounded-2xl border border-gold/40 bg-gold/5 p-6">
+        <p className="text-sm text-ink">
+          Double-check this address before sending -- there's no way to reverse
+          a payout to the wrong wallet:
+        </p>
+        <p className="rounded-lg border border-border bg-paper px-3 py-2 font-mono text-sm text-ink">
+          {walletAddress.trim()}
         </p>
         <div className="flex items-center gap-3">
           <button
-            onClick={async () => {
-              setSwitchingChain(true);
-              setSwitchError(null);
-              try {
-                await switchChainAsync({ chainId: robinhoodChainTestnet.id });
-              } catch (err) {
-                setSwitchError(describeChainSwitchError(err));
-              } finally {
-                setSwitchingChain(false);
-              }
-            }}
-            className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark"
+            onClick={submit}
+            disabled={submitting}
+            className="rounded-full bg-gold px-4 py-2 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
           >
-            Switch network
+            {submitting ? "Sending…" : "Confirm and send"}
           </button>
           <button
-            onClick={cancel}
+            onClick={() => setConfirming(false)}
+            disabled={submitting}
             className="text-xs text-muted underline hover:text-ink"
           >
-            Cancel
+            Go back
           </button>
         </div>
-        {switchError && <p className="mt-2 text-xs text-loss">{switchError}</p>}
+        {error && <p className="text-xs text-loss">{error}</p>}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6">
-      <p className="text-sm text-muted">
-        Connected as <span className="font-mono text-ink">{address}</span>
-      </p>
-
-      {!voucher ? (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={requestVoucher}
-            disabled={requesting}
-            className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
-          >
-            {requesting ? "…" : "Get claim voucher"}
-          </button>
-          <button
-            onClick={cancel}
-            className="text-xs text-muted underline hover:text-ink"
-          >
-            Cancel
-          </button>
-        </div>
-      ) : isConfirmed && txHash ? (
-        // Once the on-chain claim is mined, never offer to submit it again --
-        // if the server-side confirm step fails, retry re-verifies the SAME
-        // txHash instead of risking a second on-chain claim() call.
-        confirmError ? (
-          <button
-            onClick={() => confirmOnServer(txHash)}
-            disabled={confirming}
-            className="rounded-full bg-gold px-4 py-2 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
-          >
-            {confirming ? "Retrying…" : "Retry confirming claim"}
-          </button>
-        ) : (
-          <p className="text-xs text-muted">Confirming your claim…</p>
-        )
-      ) : (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={submitClaim}
-            disabled={switchingChain || isPending || isConfirming}
-            className="rounded-full bg-gold px-4 py-2 text-xs font-semibold text-paper transition hover:opacity-90 disabled:opacity-50"
-          >
-            {switchingChain
-              ? "Switching network…"
-              : isPending
-                ? "Confirm in wallet…"
-                : isConfirming
-                  ? "Waiting for confirmation…"
-                  : `Claim ${(Number(voucher.amountWei) / 1e18).toFixed(4)} ETH`}
-          </button>
-          {/* Cancelling once a transaction has actually been sent wouldn't
-              stop it on-chain, so the option disappears once txHash exists. */}
-          {!txHash && (
-            <button
-              onClick={cancel}
-              className="text-xs text-muted underline hover:text-ink"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      )}
-
-      {voucherError && <p className="text-xs text-loss">{voucherError}</p>}
-      {switchError && <p className="text-xs text-loss">{switchError}</p>}
-      {writeError && (
-        <p className="text-xs text-loss">
-          {writeError.message.includes("does not match the target chain")
-            ? "Your wallet switched away from Robinhood Chain testnet -- click Claim again to reconnect."
-            : writeError.message}
-        </p>
-      )}
+      <label className="text-sm text-muted" htmlFor="bet-wallet-address">
+        Wallet address to receive your winnings (Robinhood Chain testnet)
+      </label>
+      <input
+        id="bet-wallet-address"
+        value={walletAddress}
+        onChange={(e) => setWalletAddress(e.target.value)}
+        placeholder="0x..."
+        className="rounded-lg border border-border bg-paper px-3 py-2 font-mono text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+      />
+      <button
+        onClick={() => setConfirming(true)}
+        disabled={!addressValid}
+        className="self-start rounded-full bg-accent px-4 py-2 text-xs font-semibold text-paper transition hover:bg-accent-dark disabled:opacity-50"
+      >
+        Continue
+      </button>
+      {error && <p className="text-xs text-loss">{error}</p>}
     </div>
   );
 }

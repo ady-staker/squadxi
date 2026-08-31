@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import {
   signClaimVoucher,
+  relayClaim,
+  verifyBonusClaimedOnChain,
   resolveRobinhoodConfig,
 } from "@/lib/robinhood-chain";
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
+// Same one-step relayed claim as contest-entries/[id]/claim/collect -- see
+// that route and lib/robinhood-chain.ts's relayClaim for the full rationale.
 export async function POST(
   request: Request,
   { params }: { params: { id: string } },
@@ -46,10 +50,7 @@ export async function POST(
     );
   }
   if (bet.claimedAt) {
-    return NextResponse.json(
-      { error: "This bet has already been claimed." },
-      { status: 409 },
-    );
+    return NextResponse.json({ success: true, alreadyClaimed: true });
   }
 
   const config = await resolveRobinhoodConfig();
@@ -60,17 +61,6 @@ export async function POST(
     );
   }
 
-  // Wallet is collected lazily, at first voucher request -- but unlike
-  // RoleBonusClaim.walletAddress (which tolerates a later request silently
-  // overwriting it, since nothing on-chain has happened yet), confirm/route.ts
-  // verifies the on-chain event's winner against this exact column read
-  // fresh at confirm time. Letting a second request quietly repoint it would
-  // let an in-flight, already-submitted, genuinely valid claim tx get
-  // rejected at confirm because the DB now expects a different wallet. So
-  // once a wallet is on file for an unclaimed bet, it's locked until claimed.
-  // Compared case-insensitively -- same convention as verifyBonusClaimedOnChain
-  // and the client's own submitClaim(), since wallet connectors don't
-  // consistently return the same case across calls.
   if (
     bet.claimWalletAddress &&
     bet.claimWalletAddress.toLowerCase() !== walletAddress.toLowerCase()
@@ -83,24 +73,52 @@ export async function POST(
       { status: 409 },
     );
   }
-  await prisma.liveBet.update({
-    where: { id: bet.id },
+  const claimedSlot = await prisma.liveBet.updateMany({
+    where: { id: bet.id, claimWalletAddress: bet.claimWalletAddress },
     data: { claimWalletAddress: walletAddress },
   });
+  if (claimedSlot.count === 0) {
+    return NextResponse.json(
+      { error: "This claim is already being processed -- try again shortly." },
+      { status: 409 },
+    );
+  }
 
+  const claimId = bet.claimId as Hex;
+  const winner = walletAddress as Address;
   const amountWei = BigInt(bet.claimAmountWei);
-  const signature = await signClaimVoucher(
-    bet.claimId as `0x${string}`,
-    walletAddress as Address,
-    amountWei,
-  );
 
-  return NextResponse.json({
-    claimId: bet.claimId,
-    winner: walletAddress,
-    amountWei: bet.claimAmountWei,
-    signature,
-    contractAddress: config.contractAddress,
-    chainId: config.chainId,
-  });
+  try {
+    const signature = await signClaimVoucher(claimId, winner, amountWei);
+    const txHash = await relayClaim(claimId, winner, amountWei, signature);
+    const verified = await verifyBonusClaimedOnChain(
+      txHash,
+      claimId,
+      winner,
+      amountWei,
+    );
+    if (!verified) {
+      return NextResponse.json(
+        {
+          error:
+            "The payout didn't verify on-chain. Reference: " +
+            bet.claimId +
+            " -- please contact support.",
+        },
+        { status: 500 },
+      );
+    }
+
+    await prisma.liveBet.update({
+      where: { id: bet.id },
+      data: { claimTxHash: txHash, claimedAt: new Date() },
+    });
+    return NextResponse.json({ success: true, txHash });
+  } catch (err) {
+    console.error(`Failed to relay claim for live bet ${bet.id}`, err);
+    return NextResponse.json(
+      { error: "Failed to send your payout. Please try again shortly." },
+      { status: 500 },
+    );
+  }
 }

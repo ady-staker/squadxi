@@ -1,6 +1,7 @@
 import "server-only";
 import {
   createPublicClient,
+  createWalletClient,
   http,
   keccak256,
   encodePacked,
@@ -39,6 +40,7 @@ type RobinhoodConfig = {
   rpcUrl: string;
   contractAddress: Address | null;
   operatorPrivateKey: Hex | null;
+  relayerPrivateKey: Hex | null;
   centsPerTestnetEth: number | null;
   chainId: number;
 };
@@ -60,6 +62,9 @@ export async function resolveRobinhoodConfig(): Promise<RobinhoodConfig> {
   const operatorPrivateKey = (settings?.robinhoodOperatorPrivateKey ||
     process.env.ROBINHOOD_OPERATOR_PRIVATE_KEY ||
     null) as Hex | null;
+  const relayerPrivateKey = (settings?.robinhoodRelayerPrivateKey ||
+    process.env.ROBINHOOD_RELAYER_PRIVATE_KEY ||
+    null) as Hex | null;
   const centsPerTestnetEth =
     settings?.robinhoodCentsPerTestnetEth ??
     (process.env.ROBINHOOD_CENTS_PER_TESTNET_ETH
@@ -73,6 +78,7 @@ export async function resolveRobinhoodConfig(): Promise<RobinhoodConfig> {
     rpcUrl,
     contractAddress,
     operatorPrivateKey,
+    relayerPrivateKey,
     centsPerTestnetEth,
     chainId,
   };
@@ -117,6 +123,64 @@ export async function signClaimVoucher(
     ),
   );
   return account.signMessage({ message: { raw: messageHash } });
+}
+
+const CLAIM_ABI = [
+  {
+    type: "function",
+    name: "claim",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "claimId", type: "bytes32" },
+      { name: "winner", type: "address" },
+      { name: "amountWei", type: "uint256" },
+      { name: "signature", type: "bytes" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+/** Submits the SAME claim() call a winner's own wallet would submit --
+ *  RoleBonusClaim.sol pays exactly the `winner` address baked into the
+ *  signed voucher regardless of who calls claim(), so relaying it costs the
+ *  relayer only gas, never the payout amount itself (that comes out of the
+ *  contract's own balance). This is what lets a winner type an address and
+ *  hit submit instead of connecting a wallet. Blocks until mined; throws if
+ *  the transaction reverts (e.g. this claimId was somehow already claimed). */
+export async function relayClaim(
+  claimId: Hex,
+  winner: Address,
+  amountWei: bigint,
+  signature: Hex,
+): Promise<Hex> {
+  const config = await resolveRobinhoodConfig();
+  if (!config.contractAddress) {
+    throw new Error("Robinhood contract address is not configured.");
+  }
+  if (!config.relayerPrivateKey) {
+    throw new Error("Robinhood relayer private key is not configured.");
+  }
+
+  const chain = robinhoodTestnet(config.rpcUrl, config.chainId);
+  const account = privateKeyToAccount(config.relayerPrivateKey);
+  const walletClient = createWalletClient({
+    account,
+    chain,
+    transport: http(config.rpcUrl),
+  });
+  const publicClient = await publicClientFor(config);
+
+  const hash = await walletClient.writeContract({
+    address: config.contractAddress,
+    abi: CLAIM_ABI,
+    functionName: "claim",
+    args: [claimId, winner, amountWei, signature],
+  });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") {
+    throw new Error("Relayed claim transaction reverted on-chain.");
+  }
+  return hash;
 }
 
 /** Read-only -- returns null if no contract is configured yet, rather than
