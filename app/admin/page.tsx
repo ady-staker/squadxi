@@ -9,6 +9,7 @@ import { AdminLiveBetsPanel } from "@/components/AdminLiveBetsPanel";
 import { AdminChatPanel } from "@/components/AdminChatPanel";
 import { AdminRobinhoodRatePanel } from "@/components/AdminRobinhoodRatePanel";
 import { AdminPlatformSettingsPanel } from "@/components/AdminPlatformSettingsPanel";
+import { AdminLoanPoolPanel } from "@/components/AdminLoanPoolPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +104,20 @@ export default function AdminPage() {
           claim on-chain from their own account.
         </p>
         <AdminLiveBetsPanel />
+      </div>
+
+      <div>
+        <h2 className="mb-4 text-xl font-semibold text-ink">
+          SQXI Finance — Lending Pool
+        </h2>
+        <p className="mb-4 text-sm text-muted">
+          Testnet ETH only. Stakers fund the pool from claimable winnings;
+          borrowers apply at /finance/loans. Approving disburses immediately --
+          manually reviewed, not automated underwriting. Defaulting an active
+          loan writes off the unpaid principal against every current staker's
+          share price.
+        </p>
+        <AdminLoanPoolPanel />
       </div>
 
       <div>

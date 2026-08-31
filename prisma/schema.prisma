@@ -312,6 +312,51 @@ model StakePosition {
   @@index([userId])
 }
 
+// One flat rate/term (Settings.loanInterestRateBps/loanTermDaysDefault at
+// application time, locked into the row), manually admin-reviewed --
+// mirrors this app's own existing "reviewed, not reckless" payout
+// philosophy rather than automated underwriting. Approval disburses
+// immediately via the same relayClaim mechanism as Collect/pool
+// withdrawals (lib/pool.ts's originateLoan) -- there's no separate
+// "approved but not yet disbursed" state.
+model Loan {
+  id             String @id @default(cuid())
+  borrowerUserId String
+  principalWei   String
+  interestRateBps Int // locked in at application time from Settings
+  termDays        Int
+
+  status String @default("PENDING") // PENDING | ACTIVE | REJECTED | REPAID | DEFAULTED
+
+  requestedAt DateTime  @default(now())
+  reviewedAt  DateTime?
+  approvedAt  DateTime?
+  dueAt       DateTime?
+
+  borrowerWalletAddress String? // collected at application time -- disbursement needs it immediately on approval
+  disbursedTxHash       String?
+
+  repaidPrincipalWei String @default("0")
+  repaidInterestWei  String @default("0")
+  defaultedAt        DateTime?
+
+  network String @default("ROBINHOOD_TESTNET")
+
+  @@index([borrowerUserId])
+}
+
+model LoanRepayment {
+  id                  String   @id @default(cuid())
+  loanId              String
+  amountWei           String
+  principalPortionWei String
+  interestPortionWei  String
+  txHash              String   @unique
+  paidAt              DateTime @default(now())
+
+  @@index([loanId])
+}
+
 // --- Live match-winner betting (separate from fantasy contests entirely) --
 
 model LiveBet {
@@ -384,6 +429,16 @@ model Settings {
   robinhoodRelayerPrivateKey  String? // pays gas to relay claim() on a winner's behalf -- never returned by any API/admin view; deliberately separate from robinhoodOperatorPrivateKey (that one only signs, never broadcasts)
   robinhoodContractAddress    String?
   robinhoodCentsPerTestnetEth Int? // bookkeeping conversion rate only; no real exchange rate backs testnet ETH
+
+  // Loan terms -- one flat rate/term/cap for every loan (no algorithmic
+  // rate curve), deliberately simple enough to state in full on the
+  // borrower-facing transparency page. Defaulted so the feature works
+  // immediately without requiring admin setup first; adjustable via
+  // POST /api/admin/settings/loan-terms.
+  loanInterestRateBps   Int    @default(500) // 5% flat, charged once over the full term
+  loanTermDaysDefault   Int    @default(14)
+  loanMaxPrincipalWei   String @default("10000000000000000") // 0.01 ETH per-loan cap
+  loanMaxUtilizationBps Int    @default(8000) // never loan out more than 80% of the pool
 
   // Sitewide kill switch -- blocks new contest entries, league joins, and
   // live-bet placement (not claims/payouts, so money already owed still
