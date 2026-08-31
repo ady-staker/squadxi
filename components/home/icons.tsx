@@ -66,3 +66,25 @@ export function BoltIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function GrowthCoinsIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <ellipse cx="7" cy="17.5" rx="4" ry="2" />
+      <path d="M3 17.5v-3c0-1.1 1.8-2 4-2s4 .9 4 2v3" />
+      <path d="M4.5 12.2c.4-.9 1.4-1.5 2.5-1.5s2.1.6 2.5 1.5" />
+      <path d="M13 15.5 16 10l2.5 4 2.5-6" />
+    </svg>
+  );
+}
+
+export function HandshakeIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M2.5 12.5 6 9l4 3.5-1.5 1.5a1.6 1.6 0 0 1-2.3 0" />
+      <path d="M21.5 12.5 18 9l-4 3.5 1.5 1.5a1.6 1.6 0 0 0 2.3 0" />
+      <path d="m8.5 11 3.5 3 3.5-3" />
+      <path d="M6 9 8.5 6.5M18 9 15.5 6.5" />
+    </svg>
+  );
+}

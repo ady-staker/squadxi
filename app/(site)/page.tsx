@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getPoolState } from "@/lib/pool";
 import { LiveMatchStrip } from "@/components/home/LiveMatchStrip";
 import { FaqAccordion } from "@/components/home/FaqAccordion";
 import { TeamCrest } from "@/components/home/TeamCrest";
@@ -13,6 +14,8 @@ import {
   WalletIcon,
   ShieldIcon,
   BoltIcon,
+  GrowthCoinsIcon,
+  HandshakeIcon,
 } from "@/components/home/icons";
 
 // Tailwind's compiler needs literal class strings, not template-built ones
@@ -111,8 +114,17 @@ function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+function formatEth(wei: string): string {
+  return (Number(wei) / 1e18).toFixed(4);
+}
+
 export default async function HomePage() {
-  const [stats, user] = await Promise.all([getHomeStats(), getCurrentUser()]);
+  const [stats, user, pool, settings] = await Promise.all([
+    getHomeStats(),
+    getCurrentUser(),
+    getPoolState(),
+    prisma.settings.findUniqueOrThrow({ where: { id: 1 } }),
+  ]);
 
   return (
     <div className="flex flex-col gap-24">
@@ -220,6 +232,69 @@ export default async function HomePage() {
           </div>
         ))}
       </section>
+
+      {/* SQXI Finance -- stake & earn / instant loans */}
+      <RevealOnScroll className="flex flex-col gap-8">
+        <div>
+          <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold">
+            New
+          </span>
+          <h2 className="mt-3 font-display text-2xl font-semibold uppercase tracking-wide text-ink">
+            Your winnings can do more
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-muted">
+            SQXI Finance is a separate, testnet-only lending pool: stake a
+            claimable prize and earn a share of interest as it&apos;s repaid, or
+            borrow directly against the pool at one flat, published rate.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-4 rounded-2xl border border-gold/30 bg-gold/5 p-6">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold/15 text-gold">
+              <GrowthCoinsIcon className="h-5 w-5" />
+            </div>
+            <h3 className="font-semibold text-ink">Stake &amp; Earn</h3>
+            <p className="text-sm leading-relaxed text-muted">
+              Choose &quot;Stake&quot; instead of &quot;Collect&quot; when
+              claiming a prize. Current pool:{" "}
+              <span className="font-semibold text-ink">
+                {formatEth(pool.totalPoolValueWei)} ETH
+              </span>
+              .
+            </p>
+            <a
+              href="/finance/stake"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-auto self-start rounded-full bg-gold px-5 py-2.5 text-sm font-semibold text-paper transition hover:opacity-90"
+            >
+              View Stake &amp; Earn →
+            </a>
+          </div>
+          <div className="flex flex-col gap-4 rounded-2xl border border-secondary/30 bg-secondary/5 p-6">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/15 text-secondary">
+              <HandshakeIcon className="h-5 w-5" />
+            </div>
+            <h3 className="font-semibold text-ink">Instant Loans</h3>
+            <p className="text-sm leading-relaxed text-muted">
+              Borrow against the pool at{" "}
+              <span className="font-semibold text-ink">
+                {(settings.loanInterestRateBps / 100).toFixed(2)}%
+              </span>{" "}
+              flat, manually reviewed. See exactly what you&apos;d repay before
+              you apply.
+            </p>
+            <a
+              href="/finance/loans"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-auto self-start rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-secondary-dark"
+            >
+              Apply for a loan →
+            </a>
+          </div>
+        </div>
+      </RevealOnScroll>
 
       {/* How it works */}
       <RevealOnScroll className="flex flex-col gap-8">

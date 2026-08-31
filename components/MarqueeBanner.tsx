@@ -11,6 +11,7 @@ const OFFERS = [
   "Live match-winner betting is now open -- back a side, watch it settle in real time.",
   "Pay entry fees and stakes with real crypto, or risk-free Robinhood Chain testnet ETH.",
   "Role bonuses for the best WK/BAT/BOWL/AR pick pay out on-chain automatically.",
+  "New: SQXI Finance -- stake your winnings and earn, or borrow against the pool.",
 ];
 
 export function MarqueeBanner() {
