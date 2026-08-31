@@ -238,6 +238,12 @@ model ContestEntry {
   claimTxHash        String?
   claimedAt          DateTime?
 
+  // Set instead of claimedAt when the winner stakes this prize into the
+  // pool (lib/pool.ts) rather than collecting it -- exactly one of the two
+  // may ever be set, enforced via a CAS updateMany in both the collect and
+  // stake routes, never both.
+  stakedAt DateTime?
+
   @@unique([contestId, userId])
   @@unique([leagueId, userId])
 }
@@ -267,6 +273,45 @@ model Payout {
   paidAt          DateTime?
 }
 
+// --- Lending pool (testnet ETH only for now -- see lib/pool.ts) -----------
+// A winner can stake a claimable prize into this pool instead of collecting
+// it; staked funds back loans other users borrow (Loan, added alongside the
+// borrowing flow), and all interest collected flows back to stakers pro-rata
+// via share price, no distribution job needed. Share math uses a fixed
+// virtual offset (lib/pool.ts's VIRTUAL_OFFSET) on both sides of every
+// price calculation -- the standard ERC-4626-style guard against a first
+// depositor manipulating share price against whoever stakes after them.
+
+model LoanPool {
+  id                String   @id @default("main") // singleton row
+  totalSharesIssued Decimal  @default(0) @db.Decimal(38, 18)
+  totalPoolValueWei String   @default("0") // principal + interest - defaults - withdrawals
+  totalLoanedWei    String   @default("0")
+  network           String   @default("ROBINHOOD_TESTNET")
+  updatedAt         DateTime @updatedAt
+}
+
+model StakePosition {
+  id           String  @id @default(cuid())
+  userId       String
+  principalWei String // informational: amount originally staked
+  shares       Decimal @db.Decimal(38, 18)
+  network      String  @default("ROBINHOOD_TESTNET")
+
+  // Exactly one of these two is ever set -- mirrors Payout's
+  // contestEntryId/liveBetId convention, enforced in code not a DB
+  // constraint (this schema has none anywhere).
+  sourceContestEntryId String? @unique
+  sourceLiveBetId      String? @unique
+
+  stakedAt          DateTime  @default(now())
+  withdrawnAt       DateTime?
+  withdrawnValueWei String?
+  withdrawTxHash    String?
+
+  @@index([userId])
+}
+
 // --- Live match-winner betting (separate from fantasy contests entirely) --
 
 model LiveBet {
@@ -290,6 +335,9 @@ model LiveBet {
   claimWalletAddress   String? // collected lazily at first voucher request, same convention as RoleBonusClaim.walletAddress
   claimTxHash          String?
   claimedAt            DateTime?
+  // Same claimedAt/stakedAt mutual exclusion as ContestEntry -- see that
+  // model's comment.
+  stakedAt             DateTime?
   createdAt            DateTime  @default(now())
   settledAt            DateTime?
 

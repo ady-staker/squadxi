@@ -52,6 +52,12 @@ export async function POST(
   if (bet.claimedAt) {
     return NextResponse.json({ success: true, alreadyClaimed: true });
   }
+  if (bet.stakedAt) {
+    return NextResponse.json(
+      { error: "This payout was already staked into the pool, not claimed." },
+      { status: 409 },
+    );
+  }
 
   const config = await resolveRobinhoodConfig();
   if (!config.contractAddress) {
@@ -73,8 +79,13 @@ export async function POST(
       { status: 409 },
     );
   }
+  // stakedAt: null also guards against racing a concurrent stake request.
   const claimedSlot = await prisma.liveBet.updateMany({
-    where: { id: bet.id, claimWalletAddress: bet.claimWalletAddress },
+    where: {
+      id: bet.id,
+      claimWalletAddress: bet.claimWalletAddress,
+      stakedAt: null,
+    },
     data: { claimWalletAddress: walletAddress },
   });
   if (claimedSlot.count === 0) {

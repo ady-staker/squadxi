@@ -58,6 +58,12 @@ export async function POST(
   if (entry.claimedAt) {
     return NextResponse.json({ success: true, alreadyClaimed: true });
   }
+  if (entry.stakedAt) {
+    return NextResponse.json(
+      { error: "This prize was already staked into the pool, not claimed." },
+      { status: 409 },
+    );
+  }
 
   const config = await resolveRobinhoodConfig();
   if (!config.contractAddress) {
@@ -79,9 +85,14 @@ export async function POST(
       { status: 409 },
     );
   }
-  // CAS: only the first of any concurrent requests gets to relay this claim.
+  // CAS: only the first of any concurrent requests gets to relay this claim
+  // -- stakedAt: null also guards against racing a concurrent stake request.
   const claimedSlot = await prisma.contestEntry.updateMany({
-    where: { id: entry.id, claimWalletAddress: entry.claimWalletAddress },
+    where: {
+      id: entry.id,
+      claimWalletAddress: entry.claimWalletAddress,
+      stakedAt: null,
+    },
     data: { claimWalletAddress: walletAddress },
   });
   if (claimedSlot.count === 0) {
