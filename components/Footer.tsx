@@ -13,6 +13,16 @@ export function Footer() {
           reviewed and paid out by the operator, not automated.
         </p>
       </div>
+      <div className="mx-auto max-w-5xl px-4 pt-4">
+        <a
+          href="/finance/loans"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-semibold text-accent hover:underline"
+        >
+          Apply for a loan / check eligibility — SQXI Finance →
+        </a>
+      </div>
       <div className="mx-auto max-w-5xl px-4 pt-4 text-[11px] text-muted/70">
         Player and team data derived from{" "}
         <a
